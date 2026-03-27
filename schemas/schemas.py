@@ -51,6 +51,10 @@ class OrderResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class ProductUpdate(BaseModel):
+    name: Optional[str]
+    price: Optional[float]
+
 class ResponseOrder(OrderCreate):
     id: int
 
@@ -60,7 +64,7 @@ class OrderUpdate(OrderCreate):
 class ProductsCreate(BaseModel):
     name: str
 
-class ProductsRead(ProductsCreate):
+class ResponseProduct(ProductsCreate):
     id: int
 
 class OperationsRequest(BaseModel):
@@ -71,8 +75,20 @@ class UpdateOrderStatus(BaseModel):
 
 class TokenResponse(BaseModel):
     access_token: str
+    refresh_token: str
     token_type: str
     client_id: int
     email: str
     age: int
     name: str
+
+class TransactionArchive(BaseModel):
+    descriprion: str
+    type: str
+
+
+class RefreshResponse(BaseModel):
+    access_token: str
+
+class RefreshRequest(BaseModel):
+    refresh_token: str

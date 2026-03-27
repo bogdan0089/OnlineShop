@@ -33,6 +33,21 @@ class AuthService:
             raise TokenInvalidError()
         
     @staticmethod
+    def create_refresh_token(client_id: int):
+        payload = {
+            "sub": str(client_id),
+            "exp": datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+        }
+        return jwt.encode(payload, settings.SECRET_KEY, settings.ALGHORITM)
+    
+
+    @staticmethod
+    def refresh_token(token: str):
+        client_id = AuthService.decode_token(token)
+        new_access_token = AuthService.create_access_token(client_id)
+        return new_access_token
+        
+    @staticmethod
     async def register_client(data: ClientCreate):
         async with UnitOfWork() as uow:
             existing_client = await uow.client.get_client_email(data.email)
@@ -57,8 +72,10 @@ class AuthService:
             if not verify_password(data.password, client.hashed_password):
                 raise VerifyPasswordError()
             token = AuthService.create_access_token(client.id)
+            refresh_token = AuthService.create_refresh_token(client.id)
             return TokenResponse(
                 access_token=token,
+                refresh_token=refresh_token,
                 token_type="bearer",
                 client_id=client.id,
                 email=client.email,

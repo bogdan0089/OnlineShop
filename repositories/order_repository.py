@@ -44,7 +44,7 @@ class OrderRepository:
         )
         return db_order.scalars().all()
     
-    async def update_order_status(self, order, status: str) -> Order:
+    async def update_order_status(self, order: Order, status: str) -> Order:
         order.status = OrderStatus(status)
         self.session.add(order)
         await self.session.refresh(order)

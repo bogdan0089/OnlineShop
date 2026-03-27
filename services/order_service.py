@@ -1,10 +1,11 @@
-from schemas.schemas import OrderCreate
+from schemas.schemas import OrderCreate, CreateTransaction
 from models.models import Order, Client
 from database.unit_of_work import UnitOfWork
+from core.enum import OrderStatus, TransactionType
 from core.exceptions import(
 OrderNotFoundError,
 ClientNotFoundError, 
-OrderDeleteError,
+NotEnoughMoneyError,
 OrderAlready,
 OrdersNotFound,
 OrderUpdateError,
@@ -58,35 +59,39 @@ class OrderService:
             order_update = await uow.order.orders_update(order, title=title)
             return order_update
         
-    async def add_product_to_order(self, order_id: int, product_id: int, current_client: Client) -> Order:
+    @staticmethod
+    async def add_product_to_order(order_id: int, product_id: int, current_client: Client) -> Order:
         async with UnitOfWork() as uow:
             order = await uow.order.get_order(order_id)
-            product = await uow.product.get_product(product_id)
-            if not product or not order:
-                raise OrdersNotFound()
-            if product in order.products:
-                raise ProductAlready()
+            if not order:
+                raise OrderNotFoundError(order_id)
             if order.client_id != current_client.id:
                 raise InsufficientPermissionsError(
                     required_role="Owner or Admin",
                     client_role="client"
                 )
+            product = await uow.product.get_product(product_id)
+            if not product:
+                raise ProductNotFound(product_id)
+            if product in order.products:
+                raise ProductAlready()
             order.products.append(product)
             return order.products
 
-    async def compeleted_order(self, order_id: int, current_client: Client) -> Order:
+    @staticmethod
+    async def compeleted_order(order_id: int, current_client: Client) -> Order:
         async with UnitOfWork() as uow:
             order = await uow.order.get_order(order_id)
             if order is None:
                 raise OrderNotFoundError(order_id)
-            if order.status == "compeleted":
-                raise OrderAlready()
             if order.client_id != current_client.id:
                 raise InsufficientPermissionsError(
                     required_role="Owner or admin",
                     client_role="client"
                 )
-            order.status = "compeleted"
+            if order.status == OrderStatus.completed:
+                raise OrderAlready()
+            order.status = OrderStatus.completed
             return order
             
     @staticmethod
@@ -139,29 +144,30 @@ class OrderService:
                 client_id=client_id
             )
             order = await uow.order.create_order(order)
-            # print(f"{order.products} p1")
             order.products.append(product)
             return order
     
-    async def delete_product_from_order(self, order_id: int, product_id: int, current_client: Client) -> Order:
+    @staticmethod
+    async def delete_product_from_order(order_id: int, product_id: int, current_client: Client) -> Order:
         async with UnitOfWork() as uow:
             order = await uow.order.get_order(order_id)
-            product = await uow.product.get_product(product_id)
             if not order:
                 raise OrderNotFoundError(order_id)
-            if not product:
-                raise ProductNotFound(product_id)
-            if product not in order.products:
-                raise ProductNotFound(product_id)
             if order.client_id != current_client.id:
                 raise InsufficientPermissionsError(
                     required_role="Owner or admin",
                     client_role="client"
                 )
+            product = await uow.product.get_product(product_id)
+            if not product:
+                raise ProductNotFound(product_id)
+            if product not in order.products:
+                raise ProductNotFound(product_id)
             order.products.remove(product)
             return order
-            
-    async def get_order_with_products(self, order_id: int, current_client: Client) -> dict:
+
+    @staticmethod
+    async def get_order_with_products(order_id: int, current_client: Client) -> dict:
         async with UnitOfWork() as uow:
             order = await uow.order.get_order_selectionload(order_id)
             if not order:
@@ -171,11 +177,50 @@ class OrderService:
                     required_role="Owner or admin",
                     client_role="client"
                 )
-            return {
-                "order_with_products": order
-            }
-        
+            return {"order_with_products": order}
+
+    @staticmethod
+    async def checkout(order_id: int, current_client: Client):
+        async with UnitOfWork() as uow:
+            order = await uow.order.get_order(order_id)
+            if not order:
+                raise OrderNotFoundError(order_id)
+            if order.client_id != current_client.id:
+                raise InsufficientPermissionsError(
+                    required_role="Owner",
+                    client_role="client"
+                )
+            if order.status == OrderStatus.completed:
+                raise OrderAlready()
+            client = await uow.client.get_client(current_client.id)
+            if not client:
+                raise ClientNotFoundError(current_client.id)
+            amount = sum(p.price for p in order.products)
+            if client.balance >= amount:
+                client.balance -= amount
+                transaction_data = CreateTransaction(
+                    amount=amount,
+                    type=TransactionType.purchase,
+                    description="Order checkout",
+                    client_fk=client.id
+                )
+                await uow.transaction.create_transaction(transaction_data)
+                order.status = OrderStatus.completed
+            else:
+                raise NotEnoughMoneyError(current_client.id)
+            return order
+
+    @staticmethod
+    async def get_my_orders(current_client: Client, limit: int = 10, offset: int = 0):
+        async with UnitOfWork() as uow:
+            orders = await uow.order.get_by_client_id(current_client.id)
+            if not orders:
+                raise OrdersNotFound()
+            return orders[offset:offset + limit]
                 
+
+
+
 
 
 

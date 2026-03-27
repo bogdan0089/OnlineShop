@@ -46,8 +46,8 @@ class ClientRepository:
         return client_email.scalars().first()
     
     async def client_delete(self, client: Client) -> Client:
-        await self.session.delete(client)
-        return client
+        delete_client = await self.session.delete(client)
+        return delete_client
         
     async def client_with_orders(self, client_id: int) -> Client:
         result = await self.session.execute(

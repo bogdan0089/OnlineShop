@@ -38,6 +38,14 @@ class ClientsNotFoundError(BaseAppException):
     def __init__(self):
         super().__init__(status_code=status.HTTP_404_NOT_FOUND, detail="Client not found.")
 
+
+class ProductsNotFound(BaseAppException):
+    def __init__(self):
+        super().__init__(
+            status_code=status.HTTP_404_NOT_FOUND, 
+            detail="Products not found."
+        )
+
 class ClientAlreadyError(BaseAppException):
     def __init__(self, email: str = None, client_id: int = None):
         if client_id:

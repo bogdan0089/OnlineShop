@@ -112,6 +112,25 @@ class ClientService:
             }
         
     @staticmethod
+    async def get_client_stats(current_client: Client) -> dict:
+        async with UnitOfWork() as uow:
+            client = await uow.client.client_with_orders(current_client.id)
+            if not client:
+                raise ClientNotFoundError(current_client.id)
+            total_orders = len(client.orders)
+            total_spent = sum(
+                sum(p.price for p in order.products)
+                for order in client.orders
+                if order.status.value == "completed"
+            )
+            return {
+                "client_id": client.id,
+                "total_orders": total_orders,
+                "total_spent": total_spent,
+                "balance": client.balance
+            }
+
+    @staticmethod
     async def client_deposit(client_id: int, amount: float, current_client: Client) -> Client:
         async with UnitOfWork() as uow:
                 client = await uow.client.get_client(client_id)

@@ -17,8 +17,6 @@ class TransactionRepository:
             type=data.type,
             description=data.description,
             client_fk=data.client_fk
-            
-            
         )
         self.session.add(transaction)
         await self.session.flush()
@@ -28,6 +26,15 @@ class TransactionRepository:
         stmt = await self.session.execute(
             select(Transaction)
             .where(Transaction.id == transaction_id)
+        )
+        return stmt.scalars().first()
+
+    async def get_client_transactions(self, client_id: int, limit: int = 10, offset: int = 0):
+        stmt = await self.session.execute(
+            select(Transaction)
+            .where(Transaction.client_fk == client_id)
+            .limit(limit)
+            .offset(offset)
         )
         return stmt.scalars().all()
     
