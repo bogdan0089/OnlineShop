@@ -153,17 +153,6 @@ class OrderService:
                 raise OrderNotCompletedError(order_id)
             return order
 
-                
-
-
-
-
-
-
-
-
-
-
     @staticmethod
     async def create_order_client(client_id: int, product_id: int, title: str, current_client: Client) -> Order:
         async with UnitOfWork() as uow:
