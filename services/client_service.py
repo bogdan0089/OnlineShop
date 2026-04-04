@@ -43,8 +43,8 @@ class ClientService:
             cached = await redis_client.get(cached_key)
             if cached:
                 return json.loads(cached)
-            client = await uow.client.get_all_clients(limit, offset)
-            if not client:
+            clients = await uow.client.get_all_clients(limit, offset)
+            if not clients:
                 raise ClientsNotFoundError()
             await redis_client.set(
                 cached_key, json.dumps([{
@@ -53,9 +53,9 @@ class ClientService:
                     "age": c.age,
                     "balance": c.balance,
                     "id": c.id
-                } for c in client if isinstance(c, Client)]), ex=60
+                } for c in clients]), ex=60
             )
-            return client
+            return clients
 
     @staticmethod
     async def get_client(client_id: int, current_client: Client) -> Client:

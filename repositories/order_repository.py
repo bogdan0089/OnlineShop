@@ -37,7 +37,7 @@ class OrderRepository:
         self.session.add(order)
         return order
 
-    async def get_orders(self, limit, offset) -> Order:
+    async def get_orders(self, limit, offset) -> list[Order]:
         db_order = await self.session.execute(
             select(Order).limit(limit).offset(offset)
         )

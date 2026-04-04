@@ -159,3 +159,14 @@ class ProductNotFound(BaseAppException):
             detail=f"Product {product_id} not found!"
         )
         self.product_id = product_id
+
+
+class OrderNotCompletedError(BaseAppException):
+    def __init__(self, order_id: int):
+        super().__init__(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Order comleted error {order_id}"
+        )
+        self.order_id = order_id
+
+        

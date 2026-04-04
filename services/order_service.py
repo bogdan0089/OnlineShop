@@ -13,7 +13,8 @@ OrdersNotFound,
 OrderUpdateError,
 InsufficientPermissionsError,
 ProductAlready,
-ProductNotFound
+ProductNotFound,
+OrderNotCompletedError
 )
 
 
@@ -41,8 +42,8 @@ class OrderService:
                     "id": o.id,
                     "title": o.title,
                     "client_id": o.client_id,
-                    "status": o.status.value 
-                } for o in order if isinstance(o, Order)]), ex=60
+                    "status": o.status.value,
+                } for o in order]), ex=60
             )
             return order
 
@@ -110,7 +111,7 @@ class OrderService:
             }
         
     @staticmethod
-    async def update_order_status(order_id: int, Status: str, current_client: Client) -> Order:
+    async def update_order_status(order_id: int, status: str, current_client: Client) -> Order:
         async with UnitOfWork() as uow:
             order = await uow.order.get_order(order_id)
             if not order:
@@ -120,9 +121,49 @@ class OrderService:
                     required_role="Owner or admin",
                     client_role="client"
                 )
-            update_order_status = await uow.order.update_order_status(order, Status)
+            update_order_status = await uow.order.update_order_status(order, status)
             return update_order_status
     
+    @staticmethod
+    async def cancell_order(order_id: int, current_client: Client) -> Order:
+        async with UnitOfWork() as uow:
+            order = await uow.order.get_order(order_id)
+            if not order:
+                raise OrderNotFoundError(order_id)
+            if order.client_id != current_client.id:
+                raise InsufficientPermissionsError(
+                    required_role="admin",
+                    client_role="client"
+                )
+            if order.status == OrderStatus.completed:
+                amount = sum(p.price for p in order.products)
+                client = await uow.client.get_client(current_client.id)
+                if not client:
+                    raise ClientNotFoundError(current_client.id)
+                client.balance += amount
+                data_transaction = CreateTransaction(
+                    amount=amount,
+                    type=TransactionType.refund,
+                    description="REFUND",
+                    client_fk=client.id
+                )
+                await uow.transaction.create_transaction(data_transaction)
+                order.status = OrderStatus.cancelled
+            else:
+                raise OrderNotCompletedError(order_id)
+            return order
+
+                
+
+
+
+
+
+
+
+
+
+
     @staticmethod
     async def create_order_client(client_id: int, product_id: int, title: str, current_client: Client) -> Order:
         async with UnitOfWork() as uow:
@@ -144,7 +185,7 @@ class OrderService:
             order = await uow.order.create_order(order)
             order.products.append(product)
             return order
-    
+
     @staticmethod
     async def delete_product_from_order(order_id: int, product_id: int, current_client: Client) -> Order:
         async with UnitOfWork() as uow:
@@ -215,6 +256,7 @@ class OrderService:
             if not orders:
                 raise OrdersNotFound()
             return orders[offset:offset + limit]
+        
                 
 
 

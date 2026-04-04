@@ -8,7 +8,7 @@ router_order = APIRouter(prefix="/order")
 
 
 @router_order.post("/create_orders", response_model=ResponseOrder)
-async def create_orders(order: OrderCreate):
+async def create_order(order: OrderCreate):
         result = await OrderService.create_order(
             data=order
         )
@@ -85,4 +85,9 @@ async def delete_product_from_order_id(order_id: int, product_id: int, current_c
 @router_order.post("/{order_id}/checkout", response_model=ResponseOrder)
 async def checkout(order_id: int, current_client=Depends(get_current_client)):
     result = await OrderService.checkout(order_id, current_client)
+    return result
+
+@router_order.post("/{order_id}/refund", response_model=ResponseOrder)
+async def cancelled_order(order_id: int, current_client=Depends(get_current_client)):
+    result = await OrderService.cancell_order(order_id, current_client)
     return result
