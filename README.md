@@ -83,6 +83,7 @@ Auth:
 | POST | /auth/register | 🔓 | Register new client |
 | POST | /auth/client_login | 🔓 | Login, get access + refresh token |
 | POST | /auth/refresh | 🔓 | Refresh access token |
+| POST | /auth/change_password | 🔒 | Change password |
 
 Client:
 | Method | URL | Auth | Description |
@@ -102,20 +103,20 @@ Client:
 Product: 
 | Method | URL | Auth | Description |
 |--------|-----|------|-------------|
-| POST | /product/ | 🔓 | Create product |
+| POST | /product/ | 🔒 | Create product |
 | GET | /product/all | 🔓 | List all products |
 | GET | /product/search?name= | 🔓 | Search by name |
 | GET | /product/filter?min_price=&max_price= | 🔓 | Filter by price |
 | GET | /product/{id} | 🔓 | Get product by ID |
-| PUT | /product/{id} | 🔓 | Update product |
-| DELETE | /product/{id} | 🔓 | Delete product |
+| PUT | /product/{id} | 🔒 | Update product |
+| DELETE | /product/{id} | 🔒 | Delete product |
 
 Order:
 | Method | URL | Auth | Description |
 |--------|-----|------|-------------|
-| POST | /order/create_orders | 🔓 | Create order |
+| POST | /order/create_orders | 🔒 | Create order |
 | POST | /order/orders | 🔒 | Create order with product |
-| GET | /order/get_orders | 🔓 | List orders (pagination) |
+| GET | /order/get_orders | 🔒 | List orders (pagination) |
 | GET | /order/orders/{id} | 🔒 | Get order by ID |
 | PUT | /order/order_update/{id} | 🔒 | Update order title |
 | PUT | /order/{id}/status | 🔒 | Update order status |
@@ -129,7 +130,7 @@ Order:
 Transaction:
 | Method | URL | Auth | Description |
 |--------|-----|------|-------------|
-| POST | /transaction/create_transaction | 🔓 | Create transaction |
+| POST | /transaction/create_transaction | 🔒 | Create transaction |
 | GET | /transaction/me/transactions | 🔒 | My transactions (pagination) |
 | GET | /transaction/{id} | 🔒 | Get transaction by ID |
 | GET | /transaction/{client_id}/transactions | 🔒 | Client transactions |
