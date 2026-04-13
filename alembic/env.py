@@ -6,6 +6,7 @@ import sys
 from pathlib import Path 
 from database.database import Base
 from core.config import settings
+import models.models
 
 
 sys.path.append(str(Path(__file__).parent.parent))
