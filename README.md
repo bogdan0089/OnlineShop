@@ -1,7 +1,7 @@
 # Backend System – Online Shop
 
 **Backend system** for managing an online shop, built with Python and FastAPI.
-Supports clients, products, orders, and transactions, demonstrating **CRUD operations**, **JWT authentication**, **database migrations** with Alembic, and **clean backend architecture**.
+Supports clients, products, orders, and transactions, demonstrating **CRUD operations**, **JWT authentication**, **role-based access control**, **product moderation**, **database migrations** with Alembic, and **clean backend architecture**.
 
 ---
 
@@ -26,7 +26,7 @@ Supports clients, products, orders, and transactions, demonstrating **CRUD opera
 ├── repositories/     # Database queries
 ├── models/           # SQLAlchemy models
 ├── schemas/          # Pydantic schemas
-├── core/             # Config, custom exceptions
+├── core/             # Config, custom exceptions, enums
 ├── database/         # Session, Unit of Work
 ├── utils/            # Password hashing, JWT dependencies
 ├── alembic/          # Migrations
@@ -42,9 +42,27 @@ Supports clients, products, orders, and transactions, demonstrating **CRUD opera
 - Unit of Work pattern
 - JWT authentication (register, login, protected endpoints)
 - Password hashing with bcrypt
+- Role-based access control (client / moderator / superadmin)
+- Product moderation workflow (pending → accept / rejected)
 - CRUD operations for clients, products, orders, and transactions
 - Database migrations with Alembic
+- Redis caching with proper invalidation
 - Dockerized environment
+
+---
+
+## Roles
+
+| Role | Access |
+|------|--------|
+| `client` | Own resources only |
+| `moderator` | Moderate products (approve / reject) |
+| `superadmin` | Full access to all resources |
+
+> First superadmin must be set directly in the database:
+> ```sql
+> UPDATE clients SET role='superadmin' WHERE email='your@email.com';
+> ```
 
 ---
 
@@ -74,8 +92,11 @@ docker compose up --build
 
 API available at: `http://localhost:8000/docs`
 
+---
 
 ## API Endpoints
+
+> 🔓 Public &nbsp; 🔒 Authenticated &nbsp; 🔑 Admin (superadmin) &nbsp; 🛡 Moderator (moderator or superadmin)
 
 Auth:
 | Method | URL | Auth | Description |
@@ -84,15 +105,16 @@ Auth:
 | POST | /auth/client_login | 🔓 | Login, get access + refresh token |
 | POST | /auth/refresh | 🔓 | Refresh access token |
 | POST | /auth/change_password | 🔒 | Change password |
+| POST | /auth/change_role/{client_id} | 🔑 | Change client role |
 
 Client:
 | Method | URL | Auth | Description |
 |--------|-----|------|-------------|
-| POST | /client/create_client | 🔓 | Create client |
+| POST | /client/create_client | 🔓 | Register new client |
 | GET | /client/me | 🔒 | Get my profile |
 | GET | /client/me/stats | 🔒 | My statistics (orders, spent) |
 | GET | /client/me/orders | 🔒 | My orders |
-| GET | /client/all_clients | 🔓 | List all clients |
+| GET | /client/get_clients | 🔑 | List all clients |
 | GET | /client/{id} | 🔒 | Get client by ID |
 | PUT | /client/{id} | 🔒 | Update client |
 | DELETE | /client/{id} | 🔒 | Delete client |
@@ -100,23 +122,24 @@ Client:
 | POST | /client/{id}/withdraw | 🔒 | Withdraw balance |
 | GET | /client/{id}/orders/count | 🔒 | Count client orders |
 
-Product: 
+Product:
 | Method | URL | Auth | Description |
 |--------|-----|------|-------------|
-| POST | /product/ | 🔒 | Create product |
-| GET | /product/all | 🔓 | List all products |
+| POST | /product/ | 🔒 | Create product (status: pending) |
+| GET | /product/all | 🔓 | List accepted products |
 | GET | /product/search?name= | 🔓 | Search by name |
 | GET | /product/filter?min_price=&max_price= | 🔓 | Filter by price |
 | GET | /product/{id} | 🔓 | Get product by ID |
-| PUT | /product/{id} | 🔒 | Update product |
-| DELETE | /product/{id} | 🔒 | Delete product |
+| PUT | /product/{id} | 🔑 | Update product |
+| DELETE | /product/{id} | 🔑 | Delete product |
+| PATCH | /product/{id}/moderate | 🛡 | Approve or reject product |
 
 Order:
 | Method | URL | Auth | Description |
 |--------|-----|------|-------------|
 | POST | /order/create_orders | 🔒 | Create order |
 | POST | /order/orders | 🔒 | Create order with product |
-| GET | /order/get_orders | 🔒 | List orders (pagination) |
+| GET | /order/get_orders | 🔑 | List all orders (pagination) |
 | GET | /order/orders/{id} | 🔒 | Get order by ID |
 | PUT | /order/order_update/{id} | 🔒 | Update order title |
 | PUT | /order/{id}/status | 🔒 | Update order status |
