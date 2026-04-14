@@ -1,7 +1,51 @@
+import uuid
 import pytest
 from pydantic import ValidationError
 from schemas.client_schema import ClientCreate, ClientUpdate, OperationsRequest
 
+
+def test_register(client):
+    email = f"user_{uuid.uuid4().hex[:8]}@gmail.com"
+    response = client.post("/auth/register", json={
+        "name": "Bohdan",
+        "email": email,
+        "password": "1111",
+        "age": 19
+    })
+    assert response.status_code == 200
+    data = response.json()
+    assert data["email"] == email
+
+
+def test_login(client, new_client):
+    response  = client.post("/auth/client_login", data={
+        "username": new_client["email"],
+        "password": new_client["password"]
+    })
+    assert response.status_code == 200
+    assert "access_token" in response.json()
+
+
+def test_get_me(client, auth_headers, new_client):
+    response = client.get("/client/me", headers=auth_headers)
+    assert response.status_code == 200
+    assert response.json()["email"] == new_client["email"]
+
+
+def test_get_me_unauthorized(client):
+    response = client.get("/client/me")
+    assert response.status_code == 401
+   
+
+def test_register_duplicated_email(client, new_client):
+    response = client.post("/auth/register", json={
+        "name": new_client["name"],
+        "email": new_client["email"],
+        "password": new_client["password"],
+        "age": new_client["age"]
+    })
+    assert response.status_code == 409
+    
 
 def test_client_create_valid():
     client = ClientCreate(name="John", email="john@example.com", password="pass123", age=25, balance=100.0)

@@ -3,6 +3,62 @@ from pydantic import ValidationError
 from schemas.product_schema import ProductCreate, ProductUpdate
 
 
+def test_create_product(client, auth_headers):
+    response = client.post("/product/", json={
+        "name": "Nike Air",
+        "price": 99.99
+    }, headers=auth_headers)
+    assert response.status_code == 200
+    assert response.json()["name"] == "Nike Air"
+    assert response.json()["price"] == 99.99
+
+
+def test_create_product_unauthorized(client):
+    response = client.post("/product/", json={
+        "name": "Nike Air",
+        "price": 99.99
+    })
+    assert response.status_code == 401
+
+
+def test_get_product(client, auth_headers):
+    created = client.post("/product/", json={
+        "name": "Adidas",
+        "price": 79.99
+    }, headers=auth_headers)
+    product_id = created.json()["id"]
+    response = client.get(f"/product/{product_id}")
+    assert response.status_code == 200
+    assert response.json()["id"] == product_id
+    assert response.json()["name"] == "Adidas"
+
+
+def test_get_product_not_found(client):
+    response = client.get("/product/999999")
+    assert response.status_code == 404
+
+
+def test_get_all_products(client):
+    response = client.get("/product/all")
+    assert response.status_code in (200, 404)
+
+
+def test_search_products(client, auth_headers):
+    client.post("/product/", json={"name": "SearchMe", "price": 10.0}, headers=auth_headers)
+    response = client.get("/product/search?name=SearchMe")
+    assert response.status_code == 200
+    assert any(p["name"] == "SearchMe" for p in response.json())
+
+
+def test_filter_products_by_price(client, auth_headers):
+    client.post("/product/", json={"name": "Cheap", "price": 5.0}, headers=auth_headers)
+    response = client.get("/product/filter?min_price=1.0&max_price=10.0")
+    assert response.status_code == 200
+    for product in response.json():
+        assert product["price"] >= 1.0
+        assert product["price"] <= 10.0
+
+
 def test_product_create_valid():
     product = ProductCreate(name="Nike Air", price=99.99)
     assert product.name == "Nike Air"

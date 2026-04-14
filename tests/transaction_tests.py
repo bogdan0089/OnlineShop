@@ -4,15 +4,40 @@ from core.enum import TransactionType
 from schemas.transaction_schema import CreateTransaction
 
 
+def test_get_my_transaction(client, auth_headers):
+    response = client.get("/transaction/me/transactions", headers=auth_headers)
+    assert response.status_code in (200, 404)
+
+
+def test_create_transaction(client, auth_headers):
+    response = client.post("/transaction/create_transaction", headers=auth_headers, json={
+        "amount": 100,
+        "type": "deposit",
+        "description": "create",
+        "client_fk": 1
+    })
+    assert response.status_code == 200
+
+
+def test_create_transaction_unauthorized(client):
+    response = client.post("/transaction/create_transaction", json={
+        "amount": 100,
+        "type": "deposit",
+        "description": "create",
+        "client_fk": 1
+    })
+    assert response.status_code == 401
+
+
 def test_create_transaction_valid():
-    tx = CreateTransaction(
+    tr= CreateTransaction(
         amount=200.0,
         type=TransactionType.deposit,
-        description="Top up",
+        description="i love python",
         client_fk=1,
     )
-    assert tx.amount == 200.0
-    assert tx.type == TransactionType.deposit
+    assert tr.amount == 200.0
+    assert tr.type == TransactionType.deposit
 
 
 def test_create_transaction_invalid_type():
