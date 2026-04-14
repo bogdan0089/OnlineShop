@@ -72,7 +72,8 @@ class OrderService:
                     required_role="Owner or Admin",
                     client_role=current_client.role.value
                 )
-            return await uow.order.orders_update(order, title=title)
+            from schemas.order_schema import OrderUpdateRequest
+            return await uow.order.orders_update(order, OrderUpdateRequest(title=title))
 
     @staticmethod
     async def add_product_to_order(order_id: int, product_id: int, current_client: Client) -> Order:

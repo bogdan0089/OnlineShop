@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     DB_HOST: str = "db"
     DB_PORT: int = 5432
     DB_NAME: str
+    REDIS_URL: str = "redis://redis:6379"
 
     @computed_field
     @property
