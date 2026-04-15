@@ -15,6 +15,7 @@ Supports clients, products, orders, and transactions, demonstrating **CRUD opera
 - Redis (caching)
 - JWT (PyJWT)
 - bcrypt / passlib
+- aiosmtplib (async email via SMTP)
 
 ---
 
@@ -47,6 +48,7 @@ Supports clients, products, orders, and transactions, demonstrating **CRUD opera
 - CRUD operations for clients, products, orders, and transactions
 - Database migrations with Alembic
 - Redis caching with proper invalidation
+- Email verification via UUID token (sent on register, confirmed via link)
 - Dockerized environment
 
 ---
@@ -106,6 +108,7 @@ Auth:
 | POST | /auth/refresh | 🔓 | Refresh access token |
 | POST | /auth/change_password | 🔒 | Change password |
 | POST | /auth/change_role/{client_id} | 🔑 | Change client role |
+| GET | /auth/verify/{token} | 🔓 | Verify email via token |
 
 Client:
 | Method | URL | Auth | Description |
