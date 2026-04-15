@@ -38,18 +38,16 @@ Supports clients, products, orders, and transactions, demonstrating **CRUD opera
 ---
 
 ## Key Concepts Demonstrated
-- Clean Architecture: Repository + Service pattern
-- Async backend with SQLAlchemy + PostgreSQL
-- Unit of Work pattern
-- JWT authentication (register, login, protected endpoints)
-- Password hashing with bcrypt
-- Role-based access control (client / moderator / superadmin)
-- Product moderation workflow (pending → accept / rejected)
-- CRUD operations for clients, products, orders, and transactions
-- Database migrations with Alembic
-- Redis caching with proper invalidation
-- Email verification via UUID token (sent on register, confirmed via link)
-- Dockerized environment
+
+- **Architecture:** Router → Service → Unit of Work → Repository → DB, strict layer separation with no cross-layer dependencies
+- **Data Modeling:** 4 ORM models (Client, Order, Product, Transaction) with One-to-Many (Client → Orders, Transactions) and Many-to-Many (Order ↔ Products, Client ↔ Products) via association tables
+- **Auth & Security:** JWT access + refresh token flow, bcrypt password hashing, email verification via UUID token stored in Redis (24h TTL)
+- **RBAC:** 3 roles (client / moderator / superadmin) with role-based endpoint protection
+- **Product Moderation:** pending → accept / rejected workflow, moderated by moderator or superadmin
+- **Caching:** Redis with 60s TTL on list/stats endpoints, cache invalidation on every write
+- **Business Logic:** order checkout (balance deduction + transaction creation), order refund (balance restore + refund transaction)
+- **Infrastructure:** Docker Compose, Alembic migrations with custom PostgreSQL Enum types, async email via aiosmtplib (Gmail SMTP)
+- **Testing:** 56 pytest tests (unit + integration), async setup with NullPool + FakeRedis
 
 ---
 
