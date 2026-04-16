@@ -15,11 +15,11 @@ from app.main import app
 
 TEST_DB_URL = (
     f"postgresql+asyncpg://{settings.DB_USER}:{settings.DB_PASSWORD}"
-    f"@localhost:{settings.DB_PORT}/{settings.DB_NAME}"
+    f"@{settings.DB_HOST}:{settings.DB_PORT}/{settings.DB_NAME}"
 )
 TEST_DB_SYNC_URL = (
     f"postgresql://{settings.DB_USER}:{settings.DB_PASSWORD}"
-    f"@localhost:{settings.DB_PORT}/{settings.DB_NAME}"
+    f"@{settings.DB_HOST}:{settings.DB_PORT}/{settings.DB_NAME}"
 )
 
 

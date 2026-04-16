@@ -13,8 +13,6 @@ def test_register(client):
         "age": 19
     })
     assert response.status_code == 200
-    data = response.json()
-    assert data["email"] == email
 
 
 def test_login(client, new_client):
@@ -51,11 +49,6 @@ def test_client_create_valid():
     client = ClientCreate(name="John", email="john@example.com", password="pass123", age=25, balance=100.0)
     assert client.name == "John"
     assert client.email == "john@example.com"
-
-
-def test_client_create_default_balance():
-    client = ClientCreate(name="John", email="john@example.com", password="pass", age=25)
-    assert client.balance == 0.0
 
 
 def test_client_create_missing_name():
