@@ -43,3 +43,7 @@ async def delete_product(product_id: int, _: CurrentAdmin) -> ResponseProduct:
 @router_product.patch("/{product_id}/moderate", response_model=ResponseProduct)
 async def update_product_status(product_id: int, status: ProductStatus, _: CurrentModerator) -> ResponseProduct:
     return await ProductService.update_product_status(product_id, status)
+
+@router_product.get("/color/{product_color}", response_model=list[ResponseProduct])
+async def find_by_color(product_color: str, limit: int = 10, offset: int = 0) -> list[ResponseProduct]:
+    return await ProductService.find_by_color(product_color, limit, offset)

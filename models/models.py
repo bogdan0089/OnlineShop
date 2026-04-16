@@ -59,6 +59,7 @@ class Product(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str]
     price: Mapped[float] = mapped_column(default=0.0)
+    color: Mapped[str]
     status: Mapped[ProductStatus] = mapped_column(
         SAEnum(ProductStatus, values_callable=lambda x: [e.value for e in x]),
         default=ProductStatus.pending

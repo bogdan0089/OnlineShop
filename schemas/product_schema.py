@@ -5,6 +5,7 @@ from typing import Optional
 class ProductCreate(BaseModel):
     name: str
     price: float = 0.0
+    color: str
 
 
 class ProductUpdate(BaseModel):
@@ -18,3 +19,4 @@ class ResponseProduct(BaseModel):
     id: int
     name: str
     price: float
+    color: str

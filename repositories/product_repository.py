@@ -66,3 +66,11 @@ class ProductRepository:
             stmt = stmt.where(Product.price <= max_price)
         result = await self.session.execute(stmt)
         return result.scalars().all()
+
+    async def find_by_color(self, product_color: str, limit: int, offset: int) -> Sequence[Product]:
+        stmt = await self.session.execute(
+            select(Product)
+            .where(Product.color == product_color)
+            .limit(limit).offset(offset)
+        )
+        return stmt.scalars().all()

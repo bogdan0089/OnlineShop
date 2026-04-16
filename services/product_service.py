@@ -1,5 +1,5 @@
 import json
-from core.exceptions import ProductNotFound, ProductsNotFound, ProductNotApprovedError
+from core.exceptions import ProductNotFound, ProductsNotFound
 from core.redis import redis_client
 from database.unit_of_work import UnitOfWork
 from models.models import Product
@@ -96,3 +96,12 @@ class ProductService:
             if not products:
                 raise ProductsNotFound()
             return products
+        
+    @staticmethod
+    async def find_by_color(product_color: str, limit: int = 10, offset: int = 0) -> list[Product]:
+        async with UnitOfWork() as uow:
+            products = await uow.product.find_by_color(product_color, limit, offset)
+            if not products:
+                raise ProductsNotFound()
+            return products
+
