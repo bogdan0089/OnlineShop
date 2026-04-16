@@ -17,8 +17,8 @@ from utils.dependencies import CurrentClient, CurrentAdmin
 router_auth = APIRouter(prefix="/auth")
 
 
-@router_auth.post("/register", response_model=ResponseClient)
-async def register_client(data: ClientCreate) -> ResponseClient:
+@router_auth.post("/register")
+async def register_client(data: ClientCreate):
     return await AuthService.register_client(data)
 
 @router_auth.post("/client_login", response_model=TokenResponse)

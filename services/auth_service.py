@@ -70,7 +70,9 @@ class AuthService:
             token = str(uuid.uuid4())
         await redis_client.set(f"verify:{token}", client.id, ex=86400)
         await EmailService.send_verification_email(client.email, token)
-        return client
+        return {
+            "message": "Registration successful. Check your email to verify account."
+        }
 
     @staticmethod
     async def client_login(data: OAuth2PasswordRequestForm = Depends()) -> TokenResponse:
