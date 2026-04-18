@@ -23,8 +23,8 @@ async def get_my_stats(current_client: CurrentClient) -> dict:
     return await ClientService.get_client_stats(current_client)
 
 @router_client.get("/me/orders")
-async def get_my_orders(current_client: CurrentClient) -> list:
-    return await OrderService.get_my_orders(current_client)
+async def get_my_orders(current_client: CurrentClient, limit: int = 10, offset: int = 0) -> list:
+    return await OrderService.get_my_orders(current_client, limit, offset)
 
 @router_client.post("/{client_id}/deposit", response_model=ResponseClient)
 async def client_deposit(
