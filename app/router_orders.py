@@ -57,7 +57,7 @@ async def create_order_for_client(
         current_client=current_client,
         client_id=data.client_id,
         product_id=data.product_id,
-        title=data.title,
+        title=data.title
     )
 
 @router_order.get("/order_with_products/{order_id}")
@@ -75,5 +75,5 @@ async def checkout(order_id: int, current_client: CurrentClient) -> ResponseOrde
     return await OrderService.checkout(order_id, current_client)
 
 @router_order.post("/{order_id}/refund", response_model=ResponseOrder)
-async def cancelled_order(order_id: int, current_client: CurrentClient) -> ResponseOrder:
-    return await OrderService.cancell_order(order_id, current_client)
+async def canceled_order(order_id: int, current_client: CurrentClient) -> ResponseOrder:
+    return await OrderService.cancel_order(order_id, current_client)
