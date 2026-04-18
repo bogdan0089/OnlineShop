@@ -38,10 +38,6 @@ async def client_withdraw(
 ) -> ResponseClient:
     return await ClientService.client_withdraw(client_id, withdraw.amount, current_client)
 
-@router_client.post("/create_client", response_model=ResponseClient)
-async def create_client(client: ClientCreate) -> ResponseClient:
-    return await ClientService.create_client(data=client)
-
 @router_client.get("/get_clients", response_model=list[ResponseClient])
 async def get_clients(_: CurrentAdmin, limit: int = 10, offset: int = 0) -> list:
     return await ClientService.get_all_client(limit, offset)

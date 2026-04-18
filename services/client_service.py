@@ -21,21 +21,6 @@ from core.enum import Role, OrderStatus, TransactionType
 class ClientService:
 
     @staticmethod
-    async def create_client(data: ClientCreate) -> Client:
-        async with UnitOfWork() as uow:
-            hashed = hash_password(data.password)
-            client = await uow.client.create_client(data, hashed)
-            order_data = OrderCreate(
-                title=f"Order for client {client.id}",
-                client_id=client.id,
-            )
-            await uow.order.create_order(order_data)
-        keys = await redis_client.keys("clients:*")
-        if keys:
-            await redis_client.delete(*keys)
-        return client
-
-    @staticmethod
     async def get_all_client(limit: int = 10, offset: int = 0) -> list[Client] | list[dict]:
         async with UnitOfWork() as uow:
             cached_key = f"clients:limit={limit}:offset={offset}"
