@@ -1,10 +1,10 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, EmailStr
 from core.enum import Role
 
 
 class ClientCreate(BaseModel):
     name: str
-    email: str
+    email: EmailStr
     password: str
     age: int
 
@@ -18,7 +18,7 @@ class ResponseClient(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
-    email: str
+    email: EmailStr
     name: str
     age: int
     balance: float

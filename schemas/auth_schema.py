@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from core.enum import Role
 
 
@@ -7,7 +7,7 @@ class TokenResponse(BaseModel):
     refresh_token: str
     token_type: str
     client_id: int
-    email: str
+    email: EmailStr
     age: int
     name: str
 
@@ -29,4 +29,4 @@ class ResetPassword(BaseModel):
     new_password: str
 
 class ForgotPassword(BaseModel):
-    email: str
+    email: EmailStr
