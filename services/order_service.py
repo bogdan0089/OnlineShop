@@ -124,7 +124,7 @@ class OrderService:
             return await uow.order.update_order_status(order, status)
 
     @staticmethod
-    async def cancell_order(order_id: int, current_client: Client) -> Order:
+    async def cancel_order(order_id: int, current_client: Client) -> Order:
         async with UnitOfWork() as uow:
             order = await uow.order.get_order(order_id)
             if not order:
