@@ -96,3 +96,33 @@ def test_operations_request_valid():
 def test_operations_request_missing_amount():
     with pytest.raises(ValidationError):
         OperationsRequest()
+
+
+def test_get_my_orders(client, auth_headers):
+    client.post("/order/create_orders", json={"title": "My Order"}, headers=auth_headers)
+    response = client.get("/client/me/orders", headers=auth_headers)
+    assert response.status_code == 200
+    assert isinstance(response.json(), list)
+
+
+def test_get_my_stats(client, auth_headers):
+    response = client.get("/client/me/stats", headers=auth_headers)
+    assert response.status_code == 200
+    assert "total_orders" in response.json()
+    assert "balance" in response.json()
+
+
+def test_change_password(client, auth_headers, new_client):
+    response = client.post("/auth/change_password", headers=auth_headers, json={
+        "old_password": new_client["password"],
+        "new_password": "mikle123"
+    })
+    assert response.status_code == 200
+
+
+def test_change_password_wrong_old(client, auth_headers):
+    response = client.post("/auth/change_password", headers=auth_headers, json={
+        "old_password": "wrongpassword",
+        "new_password": "mikle123"
+    })
+    assert response.status_code == 401

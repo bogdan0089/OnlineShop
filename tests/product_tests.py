@@ -104,3 +104,12 @@ def test_product_update_only_price():
     update = ProductUpdate(price=49.99)
     assert update.price == 49.99
     assert update.name is None
+
+
+def test_moderate_product(client, auth_headers, new_client):
+    product = client.post("/product/", json={"name": "AirPods", "price": 300, "color": "white"}, headers=auth_headers)
+    product_id = product.json()["id"]
+    _db_execute("UPDATE clients SET role='moderator' WHERE email=%s", (new_client["email"],))
+    response = client.patch(f"/product/{product_id}/moderate", headers=auth_headers, json={"status": "accept"})
+    assert response.status_code == 200
+    assert response.json()["status"] == "accept"

@@ -58,7 +58,7 @@ class ProductService:
     @staticmethod
     async def update_product_status(product_id: int, status: ProductStatus) -> Product:
         async with UnitOfWork() as uow:
-            product = await uow.product.get_product(product_id)
+            product = await uow.product.get_product_any_status(product_id)
             if not product:
                 raise ProductNotFound(product_id)
             updated = await uow.product.update_product_status(product, status)

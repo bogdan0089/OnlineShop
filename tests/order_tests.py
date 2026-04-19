@@ -2,6 +2,7 @@ import pytest
 from pydantic import ValidationError
 from core.enum import OrderStatus
 from schemas.order_schema import ClientOrder, OrderCreate, UpdateOrderStatus
+from tests.conftest import _db_execute
 
 
 def test_create_order(client, auth_headers):
@@ -74,3 +75,42 @@ def test_update_order_status_valid():
 def test_update_order_status_invalid():
     with pytest.raises(ValidationError):
         UpdateOrderStatus(status="flying")
+
+
+def test_checkout(client, auth_headers):
+    me = client.get("/client/me", headers=auth_headers)
+    client_id = me.json()["id"]
+    client.post(f"/client/{client_id}/deposit", headers=auth_headers, json={"amount": 1000})
+    product = client.post("/product/", json={"name": "samsung", "price": 50.0, "color": "black"}, headers=auth_headers)
+    _db_execute("UPDATE products SET status='accept' WHERE name=%s", ("samsung",))
+    product_id = product.json()["id"]
+    order = client.post("/order/create_orders", json={"title": "samsung"}, headers=auth_headers)
+    order_id = order.json()["id"]
+    client.post(f"/order/{order_id}/products/{product_id}", headers=auth_headers)
+    response = client.post(f"/order/{order_id}/checkout", headers=auth_headers)
+    assert response.status_code == 200
+    assert response.json()["status"] == "completed"
+
+
+def test_refund_completed_order(client, auth_headers):
+    me = client.get("/client/me", headers=auth_headers)
+    client_id = me.json()["id"]
+    client.post(f"/client/{client_id}/deposit", headers=auth_headers, json={"amount": 1000})
+    product = client.post("/product/", json={"name": "macbook", "price": 50.0, "color": "white"}, headers=auth_headers)
+    _db_execute("UPDATE products SET status='accept' WHERE name=%s", ("macbook",))
+    product_id = product.json()["id"]
+    order = client.post("/order/create_orders", json={"title": "Refund Order"}, headers=auth_headers)
+    order_id = order.json()["id"]
+    client.post(f"/order/{order_id}/products/{product_id}", headers=auth_headers)
+    client.post(f"/order/{order_id}/checkout", headers=auth_headers)
+    response = client.post(f"/order/{order_id}/refund", headers=auth_headers)
+    assert response.status_code == 200
+    assert response.json()["message"] == "Order cancelled successfully"
+
+
+def test_refund_already_cancelled(client, auth_headers):
+    order = client.post("/order/create_orders", json={"title": "Cancel Order"}, headers=auth_headers)
+    order_id = order.json()["id"]
+    client.post(f"/order/{order_id}/refund", headers=auth_headers)
+    response = client.post(f"/order/{order_id}/refund", headers=auth_headers)
+    assert response.status_code == 400

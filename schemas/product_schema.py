@@ -1,5 +1,6 @@
 from pydantic import BaseModel, ConfigDict
 from typing import Optional
+from core.enum import ProductStatus
 
 
 class ProductCreate(BaseModel):
@@ -12,6 +13,9 @@ class ProductUpdate(BaseModel):
     name: Optional[str] = None
     price: Optional[float] = None
 
+class UpdateProductStatus(BaseModel):
+    status: ProductStatus
+                        
 
 class ResponseProduct(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -20,3 +24,4 @@ class ResponseProduct(BaseModel):
     name: str
     price: float
     color: str
+    status: ProductStatus
