@@ -27,6 +27,13 @@ class ProductRepository:
             .where(Product.status == ProductStatus.accept)
         )
         return stmt.scalars().first()
+    
+    async def get_product_any_status(self, product_id: int) -> Product | None:
+        result = await self.session.execute(
+            select(Product)
+            .where(Product.id == product_id)
+        )
+        return result.scalars().first()
 
     async def get_products(self, limit: int, offset: int) -> Sequence[Product]:
         result = await self.session.execute(

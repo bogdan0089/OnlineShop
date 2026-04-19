@@ -1,11 +1,11 @@
 from fastapi import APIRouter
 from schemas.client_schema import (
-    ClientCreate,
     ClientOrdersCount,
     ClientUpdate,
     OperationsRequest,
     ResponseClient,
 )
+from schemas.order_schema import ResponseOrder
 from services.client_service import ClientService
 from services.order_service import OrderService
 from utils.dependencies import CurrentClient, CurrentAdmin
@@ -22,8 +22,8 @@ async def get_me(current_client: CurrentClient) -> ResponseClient:
 async def get_my_stats(current_client: CurrentClient) -> dict:
     return await ClientService.get_client_stats(current_client)
 
-@router_client.get("/me/orders")
-async def get_my_orders(current_client: CurrentClient, limit: int = 10, offset: int = 0) -> list:
+@router_client.get("/me/orders", response_model=list[ResponseOrder])
+async def get_my_orders(current_client: CurrentClient, limit: int = 10, offset: int = 0) -> list[ResponseOrder]:
     return await OrderService.get_my_orders(current_client, limit, offset)
 
 @router_client.post("/{client_id}/deposit", response_model=ResponseClient)
