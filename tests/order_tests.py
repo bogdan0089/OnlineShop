@@ -41,7 +41,7 @@ def test_update_order_title(client, auth_headers):
 
 
 def test_get_order_not_found(client, auth_headers):
-    response = client.get("/order/orders/999999", headers=auth_headers)
+    response = client.get("/order/999999/orders", headers=auth_headers)
     assert response.status_code == 404
 
 
