@@ -16,6 +16,9 @@ Supports clients, products, orders, and transactions, demonstrating **CRUD opera
 - JWT (PyJWT)
 - bcrypt / passlib
 - aiosmtplib (async email via SMTP)
+- Celery (async task queue)
+- Stripe (payment processing)
+- WebSocket (real-time notifications)
 
 ---
 
@@ -50,6 +53,9 @@ Supports clients, products, orders, and transactions, demonstrating **CRUD opera
 - **Pagination:** All list endpoints support `limit` and `offset` query parameters
 - **Business Logic:** order checkout (balance deduction + transaction creation), order refund (balance restore + refund transaction)
 - **Infrastructure:** Docker Compose, Alembic migrations with custom PostgreSQL Enum types, async email via aiosmtplib (Gmail SMTP)
+- **Stripe Payments:** PaymentIntent flow — client creates payment, Stripe confirms via webhook, balance is topped up automatically
+- **WebSocket:** real-time admin notifications on order checkout via persistent WebSocket connection (`/ws/admin`)
+- **Async Tasks:** Celery + Redis for background email sending (verification, password reset)
 - **Testing:** pytest unit + integration tests, async setup with NullPool + FakeRedis
 
 ---
@@ -92,6 +98,12 @@ API available at: `http://localhost:8000/docs`
 ### Run tests
 ```bash
 docker exec -it api pytest tests/ -v
+```
+
+### Stripe webhook (local development)
+```bash
+# Install Stripe CLI and run:
+stripe listen --forward-to localhost:8000/payment/webhook
 ```
 
 ### Database migrations
@@ -167,3 +179,14 @@ Transaction:
 | GET | /transaction/me/transactions | 🔒 | My transactions with pagination |
 | GET | /transaction/{id} | 🔒 | Get transaction by ID |
 | GET | /transaction/{client_id}/transactions | 🔒 | Client transactions with pagination |
+
+Payment (Stripe):
+| Method | URL | Auth | Description |
+|--------|-----|------|-------------|
+| POST | /payment/create | 🔒 | Create Stripe PaymentIntent, returns client_secret |
+| POST | /payment/webhook | 🔓 | Stripe webhook — tops up balance on payment success |
+
+WebSocket:
+| Type | URL | Auth | Description |
+|------|-----|------|-------------|
+| WS | /ws/admin | 🔑 Token in query | Real-time notifications for admin on order checkout |
