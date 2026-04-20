@@ -1,6 +1,6 @@
-# Backend System – Online Shop
+# FastAPI E-Commerce Backend
 
-**Backend system** for managing an online shop, built with Python and FastAPI.
+**Production-ready REST API** for managing an e-commerce platform, built with Python and FastAPI.
 Supports clients, products, orders, and transactions, demonstrating **CRUD operations**, **JWT authentication**, **role-based access control**, **product moderation**, **database migrations** with Alembic, and **clean backend architecture**.
 
 ---
