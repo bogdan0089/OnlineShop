@@ -1,16 +1,14 @@
 from fastapi import APIRouter, Request
 import stripe
 from core.config import settings
-from schemas.transaction_schema import RequestPayment, CreateTransaction
+from schemas.transaction_schema import RequestPayment
 from utils.dependencies import CurrentClient
-from database.unit_of_work import UnitOfWork
-from core.enum import TransactionType
+from services.payment_service import PaymentService
 
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
 
 router_payment = APIRouter(prefix="/payment")
-
 
 
 @router_payment.post("/create")
@@ -34,18 +32,10 @@ async def stripe_webhook(request: Request):
         intent = event["data"]["object"]
         client_id = int(intent["metadata"]["client_id"])
         amount = intent["amount"] / 100
-        async with UnitOfWork() as uow:
-            client = await uow.client.get_client(client_id)
-            if client:
-                client.balance += amount
-                await uow.transaction.create_transaction(CreateTransaction(
-                    amount=amount,
-                    type=TransactionType.deposit,
-                    description="Stripe payment",
-                    client_fk=client_id
-                ))
-    return {"status": "ok"}
+        await PaymentService.handle_payment_success(client_id, amount)
+    return {
+        "status": "ok"
+    }
 
-        
 
 
