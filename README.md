@@ -56,6 +56,9 @@ Supports clients, products, orders, and transactions, demonstrating **CRUD opera
 - **Stripe Payments:** PaymentIntent flow — client creates payment, Stripe confirms via webhook, balance is topped up automatically
 - **WebSocket:** real-time admin notifications on order checkout via persistent WebSocket connection (`/ws/admin`)
 - **Async Tasks:** Celery + Redis for background email sending (verification, password reset)
+- **Pessimistic Locking:** `SELECT ... FOR UPDATE` on all balance-changing operations (checkout, refund, deposit, withdraw) to prevent race conditions and double charges
+- **Order State Machine:** enforced status transitions (`create → completed/cancelled`, `completed → cancelled` only) — invalid transitions raise HTTP 400
+- **Rate Limiting:** Redis-based per-IP request counter on auth endpoints — max 5 requests per 60 seconds, returns HTTP 429 on excess
 - **Testing:** pytest unit + integration tests, async setup with NullPool + FakeRedis
 
 ---
