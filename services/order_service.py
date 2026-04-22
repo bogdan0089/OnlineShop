@@ -78,7 +78,7 @@ class OrderService:
             return await uow.order.orders_update(order, OrderUpdateRequest(title=title))
 
     @staticmethod
-    async def add_product_to_order(order_id: int, product_id: int, current_client: Client) -> Order:
+    async def add_product_to_order(order_id: int, product_id: int, quantity: int, current_client: Client) -> Order:
         async with UnitOfWork() as uow:
             order = await uow.order.get_order(order_id)
             if not order:
@@ -93,9 +93,9 @@ class OrderService:
                 raise ProductNotFound(product_id)
             if product.status != ProductStatus.accept:
                 raise ProductNotApprovedError(product.id)
-            if product in order.products:
+            if any(op.product_id == product_id for op in order.order_products):
                 raise ProductAlready()
-            order.products.append(product)
+            await uow.order.add_product_to_order(order_id, product_id, quantity)
             return order
 
     @staticmethod
@@ -149,7 +149,7 @@ class OrderService:
             if order.status == OrderStatus.cancelled:
                 raise OrderCannotBeCancelledError(order_id)
             if order.status == OrderStatus.completed:
-                amount = sum(p.price for p in order.products)
+                amount = sum(op.product.price * op.quantity for op in order.order_products)
                 client.balance += amount
                 await uow.transaction.create_transaction(CreateTransaction(
                     amount=amount,
@@ -229,7 +229,7 @@ class OrderService:
             client = await uow.client.get_client_with_lock(order.client_id)
             if not client:
                 raise ClientNotFoundError(current_client.id)
-            amount = sum(p.price for p in order.products)
+            amount = sum(op.product.price * op.quantity for op in order.order_products)
             if client.balance < amount:
                 raise NotEnoughMoneyError(order.client_id)
             client.balance -= amount
@@ -248,5 +248,5 @@ class OrderService:
         async with UnitOfWork() as uow:
             orders = await uow.order.get_by_client_id(current_client.id, limit, offset)
             if not orders:
-                raise OrdersNotFound()
+                return []
             return orders

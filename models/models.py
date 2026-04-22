@@ -49,8 +49,8 @@ class Order(Base):
         default=OrderStatus.create,
     )
     client: Mapped["Client"] = relationship(back_populates="orders")
-    products: Mapped[list["Product"]] = relationship(
-        secondary="order_products", back_populates="orders", lazy="selectin"
+    order_products: Mapped[list["OrderProduct"]] = relationship(
+        back_populates="order", lazy="selectin"
     )
 
 
@@ -66,24 +66,26 @@ class Product(Base):
         default=ProductStatus.pending
     )
     image_url: Mapped[str | None] = mapped_column(nullable=True)
-    orders: Mapped[list["Order"]] = relationship(
-        secondary="order_products", back_populates="products", lazy="selectin"
+    order_products: Mapped[list["OrderProduct"]] = relationship(
+        back_populates="product"
     )
     clients: Mapped[list["Client"]] = relationship(
         secondary="client_products", back_populates="products"
     )
 
 
+class OrderProduct(Base):
+    __tablename__ = "order_products"
+    order_id: Mapped[int] = mapped_column(ForeignKey("orders.id"), primary_key=True)
+    product_id: Mapped[int] = mapped_column(ForeignKey("products.id"), primary_key=True)
+    quantity: Mapped[int] = mapped_column(default=1)
+    order: Mapped["Order"] = relationship(back_populates="order_products")
+    product: Mapped["Product"] = relationship(back_populates="order_products", lazy="selectin")
+
+
 client_products = Table(
     "client_products",
     Base.metadata,
     Column("client_id", ForeignKey("clients.id"), primary_key=True),
-    Column("product_id", ForeignKey("products.id"), primary_key=True),
-)
-
-order_products = Table(
-    "order_products",
-    Base.metadata,
-    Column("order_id", ForeignKey("orders.id"), primary_key=True),
     Column("product_id", ForeignKey("products.id"), primary_key=True),
 )

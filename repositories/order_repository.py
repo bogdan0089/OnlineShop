@@ -3,7 +3,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from core.enum import OrderStatus
-from models.models import Order
+from models.models import Order, OrderProduct
 from schemas.order_schema import OrderCreate, OrderUpdateRequest
 
 
@@ -56,3 +56,8 @@ class OrderRepository:
         await self.session.flush()
         await self.session.refresh(order)
         return order
+
+
+    async def add_product_to_order(self, order_id: int, product_id: int, quantity: int) -> None:
+        item = OrderProduct(order_id=order_id, product_id=product_id, quantity=quantity)
+        self.session.add(item)
