@@ -29,9 +29,9 @@ async def get_order(order_id: int, current_client: CurrentClient) -> ResponseOrd
 
 @router_order.post("/{order_id}/products/{products_id}", response_model=ResponseOrder)
 async def add_product_to_order(
-    order_id: int, products_id: int, current_client: CurrentClient
+    order_id: int, products_id: int, current_client: CurrentClient, quantity: int = 1
 ) -> ResponseOrder:
-    return await OrderService.add_product_to_order(order_id, products_id, current_client)
+    return await OrderService.add_product_to_order(order_id, products_id, quantity, current_client)
 
 @router_order.put("/order_update/{order_id}", response_model=OrderUpdate)
 async def order_update(
