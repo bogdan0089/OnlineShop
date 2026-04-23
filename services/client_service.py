@@ -1,7 +1,6 @@
 import json
 from typing import Any
 from core.exceptions import (
-    ClientDeleteError,
     ClientNotFoundError,
     ClientsNotFoundError,
     InsufficientPermissionsError,
@@ -80,12 +79,6 @@ class ClientService:
                 raise InsufficientPermissionsError(
                     required_role="Owner or Admin",
                     client_role=current_client.role.value
-                )
-            orders = await uow.order.get_by_client_id(client_id)
-            if orders:
-                raise ClientDeleteError(
-                    client_id,
-                    reason=f"Client has {len(orders)} active order(s). Remove them first.",
                 )
             await uow.client.client_delete(client)
         keys = await redis_client.keys("clients:*")
