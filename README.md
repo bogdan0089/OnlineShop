@@ -3,6 +3,9 @@
 **Production-ready REST API** for managing an e-commerce platform, built with Python and FastAPI.
 Supports clients, products, orders, and transactions, demonstrating **CRUD operations**, **JWT authentication**, **role-based access control**, **product moderation**, **database migrations** with Alembic, and **clean backend architecture**.
 
+**Live demo:** https://bohdan-shop.duckdns.org  
+**Frontend repo:** https://github.com/bogdan0089/ecommerce-frontend
+
 ---
 
 ## Technologies
