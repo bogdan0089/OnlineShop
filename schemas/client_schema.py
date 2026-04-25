@@ -8,6 +8,13 @@ class ClientCreate(BaseModel):
     password: str
     age: int
 
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, p: str) -> str:
+        if len(p) < 8:
+            raise ValueError("Password must be at least 8 characters")
+        return p
+            
     @field_validator("email")
     @classmethod
     def lowercase_email(cls, v: str) -> str:

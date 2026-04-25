@@ -9,7 +9,7 @@ def test_register(client):
     response = client.post("/auth/register", json={
         "name": "Bohdan",
         "email": email,
-        "password": "1111",
+        "password": "password111",
         "age": 19
     })
     assert response.status_code == 200
@@ -23,6 +23,15 @@ def test_login(client, new_client):
     assert response.status_code == 200
     assert "access_token" in response.json()
 
+
+def test_register_short_password(client):
+    response = client.post("/auth/register", json={
+        "name": "Bohdan",
+        "email": "test19@gmail.com",
+        "password": "1234567",
+        "age": 19
+    })
+    assert response.status_code == 422
 
 def test_get_me(client, auth_headers, new_client):
     response = client.get("/client/me", headers=auth_headers)

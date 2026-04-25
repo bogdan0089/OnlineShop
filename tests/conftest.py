@@ -13,6 +13,7 @@ from core.config import settings
 from app.main import app
 
 
+
 TEST_DB_URL = (
     f"postgresql+asyncpg://{settings.DB_USER}:{settings.DB_PASSWORD}"
     f"@{settings.DB_HOST}:{settings.DB_PORT}/{settings.DB_NAME}"
@@ -28,6 +29,8 @@ class FakeRedis:
     async def set(self, key, value, ex=None): pass
     async def keys(self, pattern): return []
     async def delete(self, *keys): pass
+    async def incr(self, key): return 1
+    async def expire(self, key, seconds): pass
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -42,6 +45,9 @@ def setup_test_db():
     product_svc.redis_client = fake
     order_svc.redis_client = fake
     auth_svc.redis_client = fake
+
+    import utils.dependencies as deps_module
+    deps_module.redis_client = fake 
 
     yield
     uow_module.async_session_maker = orig
