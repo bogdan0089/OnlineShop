@@ -22,6 +22,7 @@ from models.models import Client, Order
 from schemas.order_schema import OrderCreate
 from schemas.transaction_schema import CreateTransaction
 from utils.connection_manager import connection
+from celery_app import send_order_status_email
 
 
 class OrderService:
@@ -131,6 +132,8 @@ class OrderService:
             }
             if status not in allowed_transitions[order.status]:
                 raise InvalidOrderTransitionError(order.status, status)
+            client = await uow.client.get_client(order.client_id)
+            send_order_status_email.delay(client.email, order_id, status)
             return await uow.order.update_order_status(order, status)
 
     @staticmethod
