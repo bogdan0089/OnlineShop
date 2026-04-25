@@ -27,6 +27,7 @@ class Settings(BaseSettings):
 
     DEBUG: bool = False
     BASE_URL: str = "http://localhost:8000"
+    FRONTEND_URL: str = "http://localhost:3000"
 
 
     @computed_field
