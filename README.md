@@ -1,7 +1,7 @@
-# FastAPI E-Commerce — Full Stack
+# FastAPI E-Commerce — Backend
 
-**Production-ready full-stack e-commerce platform** built with FastAPI (backend) and Next.js (frontend).  
-Features JWT auth, role-based access control, Stripe payments, real-time WebSocket notifications, Redis caching, and a complete shopping flow from browsing to checkout.
+**Production-ready REST API** for an e-commerce platform built with Python and FastAPI.  
+Features JWT auth, role-based access control, Stripe payments, real-time WebSocket notifications, Redis caching, Celery async tasks, and a full shopping flow from browsing to checkout.
 
 **Live demo:** https://bohdan-shop.duckdns.org  
 **Frontend repo:** https://github.com/bogdan0089/ecommerce-frontend
@@ -10,7 +10,6 @@ Features JWT auth, role-based access control, Stripe payments, real-time WebSock
 
 ## Stack
 
-**Backend**
 - Python 3.11 + FastAPI (async)
 - PostgreSQL + SQLAlchemy (async ORM) + Alembic (migrations)
 - Redis — caching + Celery broker
@@ -20,18 +19,11 @@ Features JWT auth, role-based access control, Stripe payments, real-time WebSock
 - WebSocket — real-time admin notifications
 - Docker & Docker Compose
 
-**Frontend**
-- Next.js 16 + React 19 + TypeScript
-- Stripe.js + `@stripe/react-stripe-js` — card payment UI
-- Inline styles (no CSS framework)
-- PM2 — process management in production
-
 ---
 
 ## Project Structure
 
 ```
-fastapi-ecommerce-backend/
 ├── app/              # Routers (FastAPI endpoints)
 ├── services/         # Business logic (all @staticmethod)
 ├── repositories/     # Raw SQLAlchemy queries
@@ -45,29 +37,13 @@ fastapi-ecommerce-backend/
 ├── celery_app.py     # Celery tasks (email sending)
 ├── Dockerfile
 └── docker-compose.yml
-
-ecommerce-frontend/
-├── app/
-│   ├── page.tsx            # Landing page
-│   ├── login/              # Login
-│   ├── register/           # Registration + email verify flow
-│   ├── products/           # Product listing with search, filters, cart
-│   ├── products/[id]/      # Product detail page
-│   ├── cart/               # Cart (localStorage)
-│   ├── checkout/           # Order checkout
-│   ├── profile/            # Profile: overview, orders, edit, deposit, security
-│   ├── transactions/       # Transaction history
-│   ├── admin/              # Admin panel: products, orders, categories, stats
-│   ├── forgot-password/    # Password reset flow
-│   └── auth/verify/[token] # Email verification
-└── lib/api.ts              # All API calls (typed)
 ```
 
 ---
 
 ## Key Concepts Demonstrated
 
-- **Architecture:** Router → Service → Unit of Work → Repository → DB, strict layer separation
+- **Architecture:** Router → Service → Unit of Work → Repository → DB, strict layer separation with no cross-layer dependencies
 - **Data Modeling:** 4 ORM models (Client, Order, Product, Transaction), One-to-Many and Many-to-Many via association tables
 - **Auth & Security:** JWT access + refresh token flow, bcrypt, email verification via UUID token in Redis (24h TTL), forgot/reset password via email
 - **RBAC:** 3 roles (client / moderator / superadmin) with role-based endpoint protection
@@ -76,41 +52,16 @@ ecommerce-frontend/
 - **Caching:** Redis with 60s TTL on list/stats endpoints, wildcard invalidation on every write
 - **Pagination:** All list endpoints support `limit` and `offset`
 - **Business Logic:** order checkout (balance deduction + purchase transaction), order refund (balance restore + refund transaction)
-- **Stripe Payments:** PaymentIntent flow — frontend creates intent, Stripe confirms via webhook, balance topped up automatically
-- **WebSocket:** persistent admin connection, broadcasts checkout notification to all connected admins on order checkout
-- **Async Tasks:** Celery + Redis for background email sending (verification, password reset, order status change notifications)
-- **Pessimistic Locking:** `SELECT ... FOR UPDATE` on all balance-changing operations to prevent race conditions
-- **Order State Machine:** enforced transitions (`create → completed/cancelled`, `completed → cancelled` only)
+- **Stripe Payments:** PaymentIntent flow — client creates intent, Stripe confirms via webhook, balance topped up automatically
+- **WebSocket:** persistent admin connection, broadcasts checkout notification to all connected admins in real time
+- **Async Tasks:** Celery + Redis for background email sending (verification, password reset, order status change)
 - **Order Status Emails:** when admin changes order status, client receives an email notification via Celery task
 - **Product Quantity:** products have a `quantity` field; checkout validates available stock and raises HTTP 400 if insufficient
 - **Password Validation:** minimum 8 characters enforced at registration via Pydantic validator
+- **Pessimistic Locking:** `SELECT ... FOR UPDATE` on all balance-changing operations to prevent race conditions
+- **Order State Machine:** enforced transitions (`create → completed/cancelled`, `completed → cancelled` only)
 - **Rate Limiting:** Redis-based per-IP counter on `/auth/client_login` and `/auth/forgot_password` — max 5 requests / 60s, returns HTTP 429
 - **Testing:** pytest integration tests, FakeRedis mock, NullPool async setup
-
----
-
-## Frontend Features
-
-**For clients:**
-- Register / Login / Email verification / Forgot password / Reset password
-- Browse products with search, category filter, max price slider
-- Product detail page
-- Cart (localStorage) → Checkout with balance deduction
-- Profile page with tabs:
-  - **Overview** — account info + quick links
-  - **Orders** — order list with expandable product details, remove product from pending order
-  - **Edit profile** — update name, age, address
-  - **Deposit** — add funds via Stripe card payment
-  - **Security** — change password, delete account
-- Transaction history with type badges and summary cards
-
-**For admins:**
-- Admin panel at `/admin` with tabs:
-  - **Products** — filter by status, create/edit/delete products, approve/reject pending
-  - **Orders** — view all orders, complete/cancel/refund
-  - **Categories** — create and list product categories
-  - **Stats** — overview cards, breakdowns by status, recent clients
-- Real-time WebSocket notifications when clients checkout orders
 
 ---
 
@@ -129,37 +80,37 @@ ecommerce-frontend/
 
 ---
 
-## How to Run
+## How to Run Locally
 
-**Backend:**
+**1. Clone and configure**
 ```bash
 git clone https://github.com/bogdan0089/fastapi-ecommerce-backend.git
 cd fastapi-ecommerce-backend
 cp .env.example .env
+# fill in the required values in .env
+```
+
+**2. Start with Docker**
+```bash
 docker compose up --build
 ```
-API + Swagger UI: `http://localhost:8000/docs`
 
-**Frontend:**
-```bash
-git clone https://github.com/bogdan0089/ecommerce-frontend.git
-cd ecommerce-frontend
-cp .env.local.example .env.local   # set NEXT_PUBLIC_STRIPE_KEY
-npm install && npm run dev
-```
-App: `http://localhost:3000`
+API: `http://localhost:8000`  
+Swagger UI: `http://localhost:8000/docs`
 
-**Tests:**
+> Alembic migrations run automatically on startup.
+
+**3. Run tests**
 ```bash
 docker exec -it api pytest tests/ -v
 ```
 
-**Stripe webhook (local):**
+**4. Stripe webhook (local)**
 ```bash
 stripe listen --forward-to localhost:8000/payment/webhook
 ```
 
-**Migrations:**
+**5. Migrations (manual)**
 ```bash
 alembic upgrade head
 alembic revision --autogenerate -m "description"
