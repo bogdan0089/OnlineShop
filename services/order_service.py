@@ -1,4 +1,3 @@
-import json
 from typing import Any
 from core.enum import OrderStatus, TransactionType, ProductStatus, Role
 from core.exceptions import (
@@ -19,38 +18,41 @@ from core.exceptions import (
 from core.redis import redis_client
 from database.unit_of_work import UnitOfWork
 from models.models import Client, Order
-from schemas.order_schema import OrderCreate
+from schemas.order_schema import OrderCreate, ResponseOrder, OrderUpdateRequest
 from schemas.transaction_schema import CreateTransaction
 from utils.connection_manager import connection
 from celery_app import send_order_status_email
+from pydantic import TypeAdapter
 
+
+_orders_list_adapter = TypeAdapter(list[ResponseOrder])
 
 class OrderService:
 
     @staticmethod
     async def create_order(title: str, current_client: Client) -> Order:
         async with UnitOfWork() as uow:
-            return await uow.order.create_order(OrderCreate(title=title, client_id=current_client.id))
+            order = await uow.order.create_order(OrderCreate(title=title, client_id=current_client.id))
+        async for key in redis_client.scan_iter("order*"):
+            await redis_client.unlink(key)
+        return order
 
     @staticmethod
-    async def get_orders(limit, offset) -> list[Order] | list[dict]:
+    async def get_orders(limit, offset) -> list[ResponseOrder]:
+        cached_key = f"orders:limit={limit}:offset={offset}"
+        cached = await redis_client.get(cached_key)
+        if cached:
+            return _orders_list_adapter.validate_json(cached)
         async with UnitOfWork() as uow:
-            cached_key = f"orders:limit={limit}:offset={offset}"
-            cached = await redis_client.get(cached_key)
-            if cached:
-                return json.loads(cached)
             orders = await uow.order.get_orders(limit=limit, offset=offset)
             if not orders:
                 raise OrdersNotFound()
-            await redis_client.set(
-                cached_key,
-                json.dumps([
-                    {"id": o.id, "title": o.title, "client_id": o.client_id, "status": o.status.value}
-                    for o in orders
-                ]),
-                ex=60,
+            validated = _orders_list_adapter.validate_python(orders)
+        await redis_client.set(
+            cached_key, _orders_list_adapter.dump_json(validated),
+            ex=60,
             )
-            return orders
+        return validated 
 
     @staticmethod
     async def get_order(order_id: int, current_client: Client) -> Order:
@@ -76,8 +78,10 @@ class OrderService:
                     required_role="Owner or Admin",
                     client_role=current_client.role.value
                 )
-            from schemas.order_schema import OrderUpdateRequest
-            return await uow.order.orders_update(order, OrderUpdateRequest(title=title))
+            updated = await uow.order.orders_update(order, OrderUpdateRequest(title=title))
+        async for key in redis_client.scan_iter("order*"):
+            await redis_client.unlink(key)
+        return updated
 
     @staticmethod
     async def add_product_to_order(order_id: int, product_id: int, quantity: int, current_client: Client) -> Order:
@@ -134,7 +138,10 @@ class OrderService:
                 raise InvalidOrderTransitionError(order.status, status)
             client = await uow.client.get_client(order.client_id)
             send_order_status_email.delay(client.email, order_id, status)
-            return await uow.order.update_order_status(order, status)
+            updated = await uow.order.update_order_status(order, status)
+        async for key in redis_client.scan_iter("order*"):
+            await redis_client.unlink(key)
+        return updated
 
     @staticmethod
     async def cancel_order(order_id: int, current_client: Client) -> None:
@@ -161,7 +168,10 @@ class OrderService:
                     description="Order refund",
                     client_fk=client.id,
                 ))
-            order.status = OrderStatus.cancelled
+            cancel = order.status = OrderStatus.cancelled
+        async for key in redis_client.scan_iter("order*"):
+            await redis_client.unlink(key)
+        return cancel
 
     @staticmethod
     async def create_order_client(
@@ -248,9 +258,11 @@ class OrderService:
                 description="Order checkout",
                 client_fk=client.id,
             ))
-            order.status = OrderStatus.completed
+            completed = order.status = OrderStatus.completed
             await connection.broadcast(f"New order {order_id} checked out by client {current_client.id}")
-            return order
+        async for key in redis_client.scan_iter("order*"):
+            await redis_client.unlink(key)
+        return completed
 
     @staticmethod
     async def get_my_orders(current_client: Client, limit, offset) -> list[Order]:

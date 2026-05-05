@@ -5,7 +5,7 @@ from repositories.order_repository import OrderRepository
 from repositories.product_repository import ProductRepository
 from repositories.transaction_repository import TransactionRepository
 from repositories.category_repository import CategoryRepository
-\
+
 
 class UnitOfWork:
     def __init__(self) -> None:

@@ -1,9 +1,11 @@
 from database.unit_of_work import UnitOfWork
-from schemas.category_schema import CategoryCreate
+from schemas.category_schema import CategoryCreate, ResponseCategory
 from models.models import Category
 from core.redis import redis_client
-import json
+from pydantic import TypeAdapter
 
+
+_category_list_adapter = TypeAdapter(list[ResponseCategory])
 
 class CategoryService:
 
@@ -12,28 +14,24 @@ class CategoryService:
     async def create_category(data: CategoryCreate) -> Category:
         async with UnitOfWork() as uow:
             category = await uow.category.create_category(data)
-            keys = await redis_client.keys("categories*")
-            if keys:
-                await redis_client.delete(*keys)
-            return category
+        async for key in redis_client.scan_iter("category*"):
+            await redis_client.unlink(key)
+        return category
 
 
     @staticmethod
-    async def get_all_category(limit, offset) -> list[Category]:
+    async def get_all_category(limit, offset) -> list[ResponseCategory]:
+        cached_key = f"categories:limit={limit}:offset={offset}"
+        cached = await redis_client.get(cached_key)
+        if cached:
+            return _category_list_adapter.validate_json(cached)
         async with UnitOfWork() as uow:
-            cached_key = f"categories:limit={limit}:offset={offset}"
-            cached = await redis_client.get(cached_key)
-            if cached:
-                return json.loads(cached)
             categories = await uow.category.get_all_category(limit, offset)
             if not categories:
                 return []
-            await redis_client.set(
-                cached_key,
-                json.dumps([{
-                    "id": c.id,
-                    "name": c.name
-                } for c in categories]),
-                ex=60,
-            )
-            return categories
+            validated = _category_list_adapter.validate_python(categories)
+        await redis_client.set(
+            cached_key, _category_list_adapter.dump_json(validated),
+            ex=60
+        )
+        return validated
