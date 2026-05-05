@@ -1,7 +1,7 @@
 # FastAPI E-Commerce — Backend
 
 **Production-ready REST API** for an e-commerce platform built with Python and FastAPI.  
-Features JWT auth, role-based access control, Stripe payments, real-time WebSocket notifications, Redis caching, Celery async tasks, and a full shopping flow from browsing to checkout.
+Features JWT auth, role-based access control, Stripe payments, real-time WebSocket notifications, Redis caching, Celery async tasks, AI-powered features via Groq, and a full shopping flow from browsing to checkout.
 
 **Live demo:** https://bohdan-shop.duckdns.org  
 **Frontend repo:** https://github.com/bogdan0089/ecommerce-frontend
@@ -17,6 +17,7 @@ Features JWT auth, role-based access control, Stripe payments, real-time WebSock
 - JWT (PyJWT) + bcrypt / passlib
 - Stripe — payment processing
 - WebSocket — real-time admin notifications
+- Groq API (LLaMA 3.3-70b-versatile) — AI recommendations, search, chat, description generation
 - Docker & Docker Compose
 
 ---
@@ -61,6 +62,7 @@ Features JWT auth, role-based access control, Stripe payments, real-time WebSock
 - **Pessimistic Locking:** `SELECT ... FOR UPDATE` on all balance-changing operations to prevent race conditions
 - **Order State Machine:** enforced transitions (`create → completed/cancelled`, `completed → cancelled` only)
 - **Rate Limiting:** Redis-based per-IP counter on `/auth/client_login` and `/auth/forgot_password` — max 5 requests / 60s, returns HTTP 429
+- **AI Integration:** Groq API (LLaMA 3.3-70b-versatile) powers 4 features: personalized product recommendations based on purchase history, semantic AI search across the product catalog, a store assistant chatbot, and AI-generated product descriptions for admins
 - **Testing:** pytest integration tests, FakeRedis mock, NullPool async setup
 
 ---
@@ -196,6 +198,14 @@ alembic revision --autogenerate -m "description"
 |--------|-----|------|-------------|
 | POST | /category/create | 🔑 | Create category |
 | GET | /category/admin | 🔓 | List all categories |
+
+**AI**
+| Method | URL | Auth | Description |
+|--------|-----|------|-------------|
+| GET | /ai/recommendations | 🔒 | Personalized recommendations based on purchase history |
+| GET | /ai/search?q= | 🔒 | Semantic AI search across product catalog |
+| POST | /ai/chat | 🔒 | Store assistant chatbot |
+| POST | /ai/generate-description | 🔑 | AI-generated product description for admin |
 
 **WebSocket**
 | Type | URL | Auth | Description |
