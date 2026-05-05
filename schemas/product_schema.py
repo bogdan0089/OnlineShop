@@ -33,3 +33,6 @@ class ResponseProduct(BaseModel):
 
 class ProductGenerateDescription(BaseModel):
     product_name: str
+
+class AiChat(BaseModel):
+    message: str
