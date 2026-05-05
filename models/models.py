@@ -67,6 +67,7 @@ class Product(Base):
         default=ProductStatus.pending
     )
     image_url: Mapped[str | None] = mapped_column(nullable=True)
+    description: Mapped[str | None] = mapped_column(nullable=True)
     quantity: Mapped[int] = mapped_column(default=0)
     category_id: Mapped[int | None] = mapped_column(ForeignKey("categories.id"), nullable=True)
     category: Mapped["Category | None"] = relationship(back_populates="products")

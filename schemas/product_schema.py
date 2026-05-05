@@ -1,5 +1,4 @@
 from pydantic import BaseModel, ConfigDict
-from typing import Optional
 from core.enum import ProductStatus
 
 
@@ -9,11 +8,13 @@ class ProductCreate(BaseModel):
     color: str
     image_url: str | None = None
     quantity: int = 0
+    description: str | None = None
 
 
 class ProductUpdate(BaseModel):
-    name: Optional[str] = None
-    price: Optional[float] = None
+    name: str | None = None
+    price: float | None = None
+    description: str | None = None
 
 
 class UpdateProductStatus(BaseModel):
@@ -30,6 +31,7 @@ class ResponseProduct(BaseModel):
     status: ProductStatus
     image_url: str | None = None
     quantity: int = 0
+    description: str | None = None
 
 class ProductGenerateDescription(BaseModel):
     product_name: str
