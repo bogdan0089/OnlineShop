@@ -30,3 +30,6 @@ class ResponseProduct(BaseModel):
     status: ProductStatus
     image_url: str | None = None
     quantity: int = 0
+
+class ProductGenerateDescription(BaseModel):
+    product_name: str

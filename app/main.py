@@ -8,6 +8,7 @@ from app.router_auth import router_auth
 from app.router_websocket import router_websocket
 from app.router_payment import router_payment
 from app.router_category import router_category
+from app.router_ai import router_ai
 
 
 app = FastAPI(title="Online Shop")
@@ -32,3 +33,4 @@ app.include_router(router_order)
 app.include_router(router_transaction)
 app.include_router(router_auth)
 app.include_router(router_category)
+app.include_router(router_ai)
