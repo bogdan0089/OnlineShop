@@ -43,3 +43,14 @@ class AiService:
             messages=[{"role": "user", "content": prompt}]
         )
         return response.choices[0].message.content
+
+    @staticmethod
+    async def chat(message: str) -> str:
+        response = await groq_client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant for an online store..."},
+                {"role": "user", "content": message}
+            ]
+        )
+        return response.choices[0].message.content
