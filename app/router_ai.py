@@ -18,3 +18,7 @@ async def product_generate_description(_: CurrentAdmin, data: ProductGenerateDes
 @router_ai.post("/chat")
 async def chat(_: CurrentClient, data: AiChat) -> str:
     return await AiService.chat(data.message)
+
+@router_ai.get("/search")
+async def ia_search(query: str, _: CurrentClient) -> str:
+    return await AiService.ai_search(query)
