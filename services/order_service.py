@@ -115,7 +115,7 @@ class OrderService:
                     required_role="Owner or Admin",
                     client_role=current_client.role.value
                 )
-            total_price = sum(p.price for p in order.products)
+            total_price = sum(op.product.price * op.quantity for op in order.order_products)
             return {"order_id": order.id, "total_price": total_price}
 
     @staticmethod
@@ -168,10 +168,10 @@ class OrderService:
                     description="Order refund",
                     client_fk=client.id,
                 ))
-            cancel = order.status = OrderStatus.cancelled
+            order.status = OrderStatus.cancelled
         async for key in redis_client.scan_iter("order*"):
             await redis_client.unlink(key)
-        return cancel
+        return order
 
     @staticmethod
     async def create_order_client(
@@ -192,7 +192,7 @@ class OrderService:
             if product.status != ProductStatus.accept:
                 raise ProductNotApprovedError(product_id)
             order = await uow.order.create_order(OrderCreate(title=title, client_id=client_id))
-            order.products.append(product)
+            await uow.order.add_product_to_order(order.id, product.id, 1)
             return order
 
     @staticmethod
@@ -209,9 +209,9 @@ class OrderService:
             product = await uow.product.get_product(product_id)
             if not product:
                 raise ProductNotFound(product_id)
-            if product not in order.products:
+            if not any(op.product_id == product_id for op in order.order_products):
                 raise ProductNotFound(product_id)
-            order.products.remove(product)
+            await uow.order.remove_product_from_order(order_id, product_id)
             return order
 
     @staticmethod
@@ -258,11 +258,11 @@ class OrderService:
                 description="Order checkout",
                 client_fk=client.id,
             ))
-            completed = order.status = OrderStatus.completed
+            order.status = OrderStatus.completed
             await connection.broadcast(f"New order {order_id} checked out by client {current_client.id}")
         async for key in redis_client.scan_iter("order*"):
             await redis_client.unlink(key)
-        return completed
+        return order
 
     @staticmethod
     async def get_my_orders(current_client: Client, limit, offset) -> list[Order]:
