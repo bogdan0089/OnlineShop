@@ -10,34 +10,32 @@ from core.exceptions import (
 from core.redis import redis_client
 from database.unit_of_work import UnitOfWork
 from models.models import Client
-from schemas.client_schema import ClientCreate, ClientUpdate
+from schemas.client_schema import ClientUpdate, ResponseClient
 from schemas.transaction_schema import CreateTransaction
-from schemas.order_schema import OrderCreate
-from utils.hash import hash_password
 from core.enum import Role, OrderStatus, TransactionType
+from pydantic import TypeAdapter
 
+
+_client_list_adapter = TypeAdapter(list[ResponseClient])
 
 class ClientService:
 
     @staticmethod
-    async def get_all_client(limit, offset) -> list[Client] | list[dict]:
+    async def get_all_client(limit, offset) -> list[ResponseClient]:
+        cached_key = f"clients:limit={limit}:offset={offset}"
+        cached = await redis_client.get(cached_key)
+        if cached:
+            return _client_list_adapter.validate_json(cached)
         async with UnitOfWork() as uow:
-            cached_key = f"clients:limit={limit}:offset={offset}"
-            cached = await redis_client.get(cached_key)
-            if cached:
-                return json.loads(cached)
             clients = await uow.client.get_all_clients(limit, offset)
             if not clients:
                 raise ClientsNotFoundError()
-            await redis_client.set(
-                cached_key,
-                json.dumps([
-                    {"email": c.email, "name": c.name, "age": c.age, "balance": c.balance, "id": c.id}
-                    for c in clients
-                ]),
-                ex=60,
-            )
-            return clients
+            validated = _client_list_adapter.validate_python(clients)
+        await redis_client.set(
+            cached_key, _client_list_adapter.dump_json(validated),
+            ex=60
+        )
+        return validated
 
     @staticmethod
     async def get_client(client_id: int, current_client: Client) -> Client:
@@ -64,9 +62,8 @@ class ClientService:
                     client_role=current_client.role.value
                 )
             updated = await uow.client.client_update(client, data)
-        keys = await redis_client.keys("clients:*")
-        if keys:
-            await redis_client.delete(*keys)
+        async for key in redis_client.scan_iter("client*"):
+            await redis_client.unlink(key)
         return updated
 
     @staticmethod
@@ -81,9 +78,8 @@ class ClientService:
                     client_role=current_client.role.value
                 )
             await uow.client.client_delete(client)
-        keys = await redis_client.keys("clients:*")
-        if keys:
-            await redis_client.delete(*keys)
+        async for key in redis_client.scan_iter("client*"):
+            await redis_client.unlink(key)
         return client
 
     @staticmethod
@@ -101,10 +97,10 @@ class ClientService:
 
     @staticmethod
     async def get_client_stats(current_client: Client) -> dict[str, Any]:
+        cached = await redis_client.get(f"client:stats:{current_client.id}")
+        if cached:
+            return json.loads(cached)
         async with UnitOfWork() as uow:
-            cached = await redis_client.get(f"client:stats:{current_client.id}")
-            if cached:
-                return json.loads(cached)
             client = await uow.client.client_with_orders(current_client.id)
             if not client:
                 raise ClientNotFoundError(current_client.id)
@@ -120,8 +116,8 @@ class ClientService:
                 "total_spent": total_spent,
                 "balance": client.balance,
             }
-            await redis_client.set(f"client:stats:{current_client.id}", json.dumps(stats), ex=60)
-            return stats
+        await redis_client.set(f"client:stats:{current_client.id}", json.dumps(stats), ex=60)
+        return stats
 
     @staticmethod
     async def client_deposit(client_id: int, amount: float, current_client: Client) -> Client:

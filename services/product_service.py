@@ -1,11 +1,13 @@
-import json
 from core.exceptions import ProductNotFound
 from core.redis import redis_client
 from database.unit_of_work import UnitOfWork
 from models.models import Product
-from schemas.product_schema import ProductCreate, ProductUpdate
+from schemas.product_schema import ProductCreate, ProductUpdate, ResponseProduct
 from core.enum import ProductStatus
+from pydantic import TypeAdapter
 
+
+_product_list_adapter = TypeAdapter(list[ResponseProduct])
 
 class ProductService:
 
@@ -13,9 +15,8 @@ class ProductService:
     async def create_product(data: ProductCreate) -> Product:
         async with UnitOfWork() as uow:
             product = await uow.product.create_product(data)
-        keys = await redis_client.keys("product*")
-        if keys:
-            await redis_client.delete(*keys)
+        async for key in redis_client.scan_iter("product*"):
+            await redis_client.unlink(key)
         return product
 
     @staticmethod
@@ -27,52 +28,38 @@ class ProductService:
             return product
 
     @staticmethod
-    async def get_products(limit, offset) -> list[Product] | list[dict]:
+    async def get_products(limit, offset) -> list[ResponseProduct]:
         async with UnitOfWork() as uow:
             cached_key = f"products:limit={limit}:offset={offset}"
             cached = await redis_client.get(cached_key)
             if cached:
-                return json.loads(cached)
+                return _product_list_adapter.validate_json(cached)
             products = await uow.product.get_products(limit, offset)
             if not products:
                 return []
+            validated = _product_list_adapter.validate_python(products)
             await redis_client.set(
-                cached_key,
-                json.dumps([{
-                    "id": p.id,
-                    "name": p.name,
-                    "price": p.price,
-                    "color": p.color,
-                    "status": p.status.value,
-                    "image_url": p.image_url
-                } for p in products]),
-                ex=60,
+                cached_key, _product_list_adapter.dump_json(validated),
+                ex=60
             )
-            return products
+            return validated
 
     @staticmethod
-    async def get_products_any_status(limit: int, offset: int) -> list[Product] | None:
+    async def get_products_any_status(limit: int, offset: int) -> list[ResponseProduct]:
         async with UnitOfWork() as uow:
             cached_key = f"products_admin:limit={limit}:offset={offset}"
             cached = await redis_client.get(cached_key)
             if cached:
-                return json.loads(cached)
+                return _product_list_adapter.validate_json(cached)
             products = await uow.product.get_products_any_status(limit, offset)
             if not products:
                 return []
+            validated = _product_list_adapter.validate_python(products)
             await redis_client.set(
-                cached_key,
-                json.dumps([{
-                    "id": p.id,
-                    "name": p.name,
-                    "price": p.price,
-                    "color": p.color,
-                    "status": p.status.value,
-                    "image_url": p.image_url
-                } for p in products]),
+                cached_key, _product_list_adapter.dump_json(validated),
                 ex=60
             )
-            return products
+            return validated
 
     @staticmethod
     async def update_product(product_id: int, data: ProductUpdate) -> Product:
@@ -81,9 +68,8 @@ class ProductService:
             if not product:
                 raise ProductNotFound(product_id)
             updated = await uow.product.update_product(product, data)
-        keys = await redis_client.keys("product*")
-        if keys:
-            await redis_client.delete(*keys)
+        async for key in redis_client.scan_iter("product*"):
+            await redis_client.unlink(key)
         return updated
 
     @staticmethod
@@ -93,9 +79,8 @@ class ProductService:
             if not product:
                 raise ProductNotFound(product_id)
             updated = await uow.product.update_product_status(product, status)
-        keys = await redis_client.keys("product*")
-        if keys:
-            await redis_client.delete(*keys)
+        async for key in redis_client.scan_iter("product*"):
+            await redis_client.unlink(key)
         return updated
 
     @staticmethod
@@ -105,9 +90,8 @@ class ProductService:
             if not product:
                 raise ProductNotFound(product_id)
             deleted = await uow.product.delete_product(product)
-        keys = await redis_client.keys("products:*")
-        if keys:
-            await redis_client.delete(*keys)
+        async for key in redis_client.scan_iter("product*"):
+            await redis_client.unlink(key)
         return deleted
 
     @staticmethod
