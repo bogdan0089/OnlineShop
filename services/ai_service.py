@@ -1,8 +1,10 @@
 from groq import AsyncGroq
 from core.config import settings
 from database.unit_of_work import UnitOfWork
-from core.exceptions import ClientNotFoundError
-
+from core.exceptions import (
+ClientNotFoundError,
+ProductsNotFound
+)
 
 
 groq_client = AsyncGroq(api_key=settings.GROQ_API_KEY)
@@ -19,7 +21,6 @@ class AiService:
         )
         return response.choices[0].message.content
 
-    
     @staticmethod
     async def get_client_recommendations(client_id: int) -> str:
         async with UnitOfWork() as uow:
@@ -54,3 +55,27 @@ class AiService:
             ]
         )
         return response.choices[0].message.content
+    
+    @staticmethod
+    async def search_products(query: str, products: list[str]) -> str:
+        products_str = ", ".join(products)
+        prompt = f"From this product list: {products_str}. Return only the names that match this query: '{query}'. Return as comma-separated list, nothing else."
+        response = await groq_client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[{"role": "user", "content": prompt}]
+        )
+        return response.choices[0].message.content
+    
+    @staticmethod
+    async def ai_search(query: str):
+        async with UnitOfWork() as uow:
+            products = await uow.product.get_products(limit=100, offset=0)
+            if not products:
+                return "No products available"
+            products_name = [p.name for p in products]
+        return await AiService.search_products(query, products_name)
+
+
+
+
+
