@@ -25,6 +25,8 @@ class Settings(BaseSettings):
     STRIPE_PUBLISHABLE_KEY: str
     STRIPE_WEBHOOK_SECRET: str
 
+    GROQ_API_KEY: str
+
     DEBUG: bool = False
     BASE_URL: str = "http://localhost:8000"
     FRONTEND_URL: str = "http://localhost:3000"
