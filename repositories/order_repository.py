@@ -57,7 +57,17 @@ class OrderRepository:
         await self.session.refresh(order)
         return order
 
-
     async def add_product_to_order(self, order_id: int, product_id: int, quantity: int) -> None:
         item = OrderProduct(order_id=order_id, product_id=product_id, quantity=quantity)
         self.session.add(item)
+
+    async def remove_product_from_order(self, order_id: int, product_id: int) -> None:
+        result = await self.session.execute(
+            select(OrderProduct).where(
+                OrderProduct.order_id == order_id,
+                OrderProduct.product_id == product_id
+            )
+        )
+        item = result.scalar_one_or_none()
+        if item:
+            await self.session.delete(item)
