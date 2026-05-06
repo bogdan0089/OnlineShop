@@ -15,6 +15,7 @@ class ProductUpdate(BaseModel):
     name: str | None = None
     price: float | None = None
     description: str | None = None
+    quantity: int | None = None
 
 
 class UpdateProductStatus(BaseModel):
