@@ -190,3 +190,17 @@ class CategoryNotFoundError(BaseAppException):
             detail=f"Category {category_id} not found."
         )
         
+class ReviewNotFoundError(BaseAppException):
+    def __init__(self, review_id: int):
+        super().__init__(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Review {review_id} not found."
+        )
+
+class ReviewsNotFoundError(BaseAppException):
+    def __init__(self):
+        super().__init__(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Reviews not found."
+        )
+

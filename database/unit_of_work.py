@@ -5,7 +5,7 @@ from repositories.order_repository import OrderRepository
 from repositories.product_repository import ProductRepository
 from repositories.transaction_repository import TransactionRepository
 from repositories.category_repository import CategoryRepository
-
+from repositories.review_repository import ReviewRepository
 
 class UnitOfWork:
     def __init__(self) -> None:
@@ -19,6 +19,7 @@ class UnitOfWork:
         self.product = ProductRepository(self.session)
         self.transaction = TransactionRepository(self.session)
         self.category = CategoryRepository(self.session)
+        self.review = ReviewRepository(self.session)
         return self
 
     async def __aexit__(self, exc_type, exc, tb) -> None:

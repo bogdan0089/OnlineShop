@@ -60,6 +60,4 @@ async def rate_limit(request: Request):
         await redis_client.incr(limit)
         await redis_client.expire(limit, 60)
 
-
-
 RateLimit = Annotated[None, Depends(rate_limit)]
