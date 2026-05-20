@@ -10,6 +10,8 @@ import services.product_service as product_svc
 import services.order_service as order_svc
 import services.auth_service as auth_svc
 import services.category_service as category_svc
+import services.review_service as review_svc
+import database.database as db_module
 from core.config import settings
 from app.main import app
 
@@ -42,7 +44,9 @@ def setup_test_db():
     engine = create_async_engine(TEST_DB_URL, poolclass=NullPool)
     session_maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
     orig = uow_module.async_session_maker
+    orig_db = db_module.async_session_maker
     uow_module.async_session_maker = session_maker
+    db_module.async_session_maker = session_maker
 
     fake = FakeRedis()
     client_svc.redis_client = fake
@@ -50,12 +54,14 @@ def setup_test_db():
     order_svc.redis_client = fake
     auth_svc.redis_client = fake
     category_svc.redis_client = fake
+    review_svc.redis_client = fake
 
     import utils.dependencies as deps_module
-    deps_module.redis_client = fake 
+    deps_module.redis_client = fake
 
     yield
     uow_module.async_session_maker = orig
+    db_module.async_session_maker = orig_db
 
 
 @pytest.fixture

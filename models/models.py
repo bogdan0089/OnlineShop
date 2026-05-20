@@ -2,6 +2,7 @@ from sqlalchemy import Column, Enum as SAEnum, ForeignKey, String, Table
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from core.enum import OrderStatus, TransactionType, Role, ProductStatus
 from database.database import Base
+from datetime import datetime
 
 
 class Transaction(Base):
@@ -30,6 +31,7 @@ class Client(Base):
     transactions: Mapped[list["Transaction"]] = relationship(back_populates="client")
     is_verified: Mapped[bool] = mapped_column(default=False)
     is_active: Mapped[bool] = mapped_column(default=True)
+    reviews: Mapped[list["Review"]] = relationship(back_populates="client")
     address: Mapped[str] = mapped_column(nullable=True)
     role: Mapped[Role] = mapped_column(SAEnum(Role, values_callable=lambda x: [e.value for e in x]),
         default=Role.client,
@@ -70,6 +72,7 @@ class Product(Base):
     description: Mapped[str | None] = mapped_column(nullable=True)
     quantity: Mapped[int] = mapped_column(default=0)
     category_id: Mapped[int | None] = mapped_column(ForeignKey("categories.id"), nullable=True)
+    reviews: Mapped[list["Review"]] = relationship(back_populates="product")
     category: Mapped["Category | None"] = relationship(back_populates="products")
     order_products: Mapped[list["OrderProduct"]] = relationship(
         back_populates="product"
@@ -95,6 +98,19 @@ class Category(Base):
     name: Mapped[str] = mapped_column(unique=True)
     products: Mapped[list["Product"]] = relationship(back_populates="category")
 
+
+class Review(Base):
+    __tablename__ = "reviews"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    rating: Mapped[int] = mapped_column(nullable=False)
+    comment: Mapped[str | None] = mapped_column(nullable=True)
+    created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"))
+    product_id: Mapped[int] = mapped_column(ForeignKey("products.id"))
+
+
+    client: Mapped["Client"] = relationship(back_populates="reviews")
+    product: Mapped["Product"] = relationship(back_populates="reviews")
 
 
 client_products = Table(
