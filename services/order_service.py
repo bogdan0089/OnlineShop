@@ -22,8 +22,9 @@ from schemas.order.input_dto import OrderCreateInternalDTO, OrderUpdateDTO
 from schemas.order.output_dto import OrderOutputDTO
 from schemas.transaction.input_dto import TransactionCreateDTO
 from utils.connection_manager import connection
-from celery_app import send_order_status_email
+from celery_app import send_order_status_email, send_new_order_notification
 from pydantic import TypeAdapter
+from core.config import settings
 
 
 _orders_list_adapter = TypeAdapter(list[OrderOutputDTO])
@@ -266,6 +267,12 @@ class OrderService:
                 status=OrderStatus.completed.value
             )
             await connection.broadcast(f"New order {order_id} checked out by client {current_client.id}")
+            send_new_order_notification.delay(
+                admin_email=settings.EMAIL_USER,
+                order_id=order.id,
+                client_email=current_client.email,
+                amount=amount
+            )
         async for key in redis_client.scan_iter("order*"):
             await redis_client.unlink(key)
         return order
