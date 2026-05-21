@@ -46,3 +46,17 @@ def send_order_status_email(to_email: str, order_id: int, status: OrderStatus):
         server.starttls()
         server.login(settings.EMAIL_USER, settings.EMAIL_PASSWORD)
         server.sendmail(settings.EMAIL_USER, to_email, message.as_string())
+
+
+@celery.task
+def send_new_order_notification(admin_email: str, order_id: int, client_email: str, amount: float):
+    message = MIMEText(f"New order {order_id} was placed by {client_email} for ${amount}")
+    message["Subject"] = "Order update"
+    message["From"] = settings.EMAIL_USER
+    message["To"] = admin_email
+    with smtplib.SMTP("smtp.gmail.com", 587) as server:
+        server.starttls()
+        server.login(settings.EMAIL_USER, settings.EMAIL_PASSWORD)
+        server.sendmail(settings.EMAIL_USER, admin_email, message.as_string())
+
+
