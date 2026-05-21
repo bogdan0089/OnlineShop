@@ -25,7 +25,8 @@ Production-ready async REST API for a full-featured e-commerce platform. Built w
 | Python 3.11 + FastAPI | Async web framework |
 | PostgreSQL 15 + SQLAlchemy 2.0 | Async ORM + database |
 | Alembic | Database migrations |
-| Redis 7 | Caching + Celery broker |
+| Redis 7 | Caching + Celery result backend |
+| RabbitMQ | Celery message broker |
 | Celery | Background email tasks |
 | PyJWT + bcrypt / passlib | Authentication + password hashing |
 | Stripe | Payment processing |
@@ -82,7 +83,7 @@ Router → Service → UnitOfWork → Repository → DB
 - **Order Flow** — checkout validates stock, deducts balance, creates `purchase` transaction; refund restores balance and creates `refund` transaction
 - **Stripe Payments** — PaymentIntent flow; client creates intent, Stripe confirms via webhook, balance topped up automatically
 - **WebSocket** — persistent admin connection, broadcasts checkout notifications to all connected admins in real time
-- **Async Tasks** — Celery + Redis for background email sending (verification, password reset, order status change)
+- **Async Tasks** — Celery + RabbitMQ for background email sending (verification, password reset, order status change)
 - **Product Quantity** — checkout validates available stock, returns HTTP 400 if insufficient
 - **Pessimistic Locking** — `SELECT ... FOR UPDATE` on all balance-changing operations to prevent race conditions
 - **Order State Machine** — enforced transitions (`pending → completed / cancelled`, `completed → cancelled` only)
@@ -277,6 +278,7 @@ alembic revision --autogenerate -m "description"
 | Service | Image | Role |
 |---------|-------|------|
 | `db` | postgres:15 | Primary database |
-| `redis` | redis:7 | Cache + Celery broker |
+| `redis` | redis:7 | Cache + Celery result backend |
+| `rabbitmq` | rabbitmq:3 | Celery message broker |
 | `backend_system_app` | Dockerfile | Runs migrations then uvicorn on :8000 |
 | `celery_worker` | Dockerfile | Runs Celery worker for email tasks |
