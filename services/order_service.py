@@ -263,8 +263,7 @@ class OrderService:
             send_order_status_email.delay(
                 to_email=current_client.email,
                 order_id=order.id,
-                status=OrderStatus.completed
-                
+                status=OrderStatus.completed.value
             )
             await connection.broadcast(f"New order {order_id} checked out by client {current_client.id}")
         async for key in redis_client.scan_iter("order*"):
