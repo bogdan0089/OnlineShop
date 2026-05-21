@@ -7,7 +7,7 @@ from core.enum import OrderStatus
 
 celery = Celery(
     "tasks",
-    broker=f"{settings.REDIS_URL}/0",
+    broker=f"{settings.RABBITMQ_URL}",
     backend=f"{settings.REDIS_URL}/0",
 )
 

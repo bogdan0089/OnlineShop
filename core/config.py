@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     DB_NAME: str
 
     REDIS_URL: str = "redis://redis:6379"
+    RABBITMQ_URL: str = ""
 
     EMAIL_USER: str = ""
     EMAIL_PASSWORD: str = ""
@@ -30,6 +31,8 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     BASE_URL: str = "http://localhost:8000"
     FRONTEND_URL: str = "http://localhost:3000"
+
+
 
 
     @computed_field
