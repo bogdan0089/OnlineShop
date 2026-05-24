@@ -20,6 +20,10 @@ from utils.hash import hash_password, verify_password
 import uuid
 from core.redis import redis_client
 from celery_app import send_verification_email, send_reset_password_email
+from utils.logger import get_logger
+
+
+logger = get_logger(__name__)
 
 
 class AuthService:
@@ -72,6 +76,7 @@ class AuthService:
             token = str(uuid.uuid4())
             await redis_client.set(f"verify:{token}", client.id, ex=86400)
         send_verification_email.delay(client.email, token)
+        logger.info("client_registered", extra={"extra_fields": {"client_id": client.id, "email": data.email}})
         return {
             "message": "Registration successful. Check your email to verify account."
         }
@@ -81,13 +86,16 @@ class AuthService:
         async with UnitOfWork() as uow:
             client = await uow.client.get_client_email(data.username)
             if not client:
+                logger.warning("login_failed_not_found", extra={"extra_fields": {"email": data.username}})
                 raise ClientNotFoundError(email=data.username)
             if not client.is_verified:
                 raise EmailNotVerifiedError(client.id)
             if not verify_password(data.password, client.hashed_password):
+                logger.warning("login_failed_wrong_password", extra={"extra_fields": {"client_id": client.id}})
                 raise VerifyPasswordError()
             token = AuthService.create_access_token(client.id)
             refresh_token = AuthService.create_refresh_token(client.id)
+            logger.info("client_login", extra={"extra_fields": {"client_id": client.id}})
             return TokenOutputDTO(
                 access_token=token,
                 refresh_token=refresh_token,
@@ -108,8 +116,9 @@ class AuthService:
             if not client:
                 raise ClientNotFoundError(current_client.id)
             client.hashed_password = new_hashed
+        logger.info("password_changed", extra={"extra_fields": {"client_id": current_client.id}})
         return {"message": "Password changed successfully."}
-        
+
     @staticmethod
     async def change_role(client_id: int, data: ChangeRoleDTO) -> Client:
         async with UnitOfWork() as uow:
@@ -117,8 +126,9 @@ class AuthService:
             if not client:
                 raise ClientNotFoundError(client_id)
             changed = await uow.client.change_role(client, data)
-            return changed
-        
+        logger.info("role_changed", extra={"extra_fields": {"client_id": client_id, "role": data.role.value}})
+        return changed
+
     @staticmethod
     async def verify_email(token: str) -> dict:
         raw = await redis_client.get((f"verify:{token}"))
@@ -131,10 +141,11 @@ class AuthService:
                 raise ClientNotFoundError(client_id)
             client.is_verified = True
         await redis_client.delete(f"verify:{token}")
+        logger.info("email_verified", extra={"extra_fields": {"client_id": client_id}})
         return {
             "message": "Email verified successfully"
         }
-            
+
     @staticmethod
     async def forgot_password(data: ForgotPasswordDTO):
         async with UnitOfWork() as uow:
@@ -144,6 +155,7 @@ class AuthService:
             reset_token = str(uuid.uuid4())
         await redis_client.set(f"reset_token:{reset_token}", client.id, ex=86400)
         send_reset_password_email.delay(client.email, reset_token)
+        logger.info("forgot_password_requested", extra={"extra_fields": {"email": data.email}})
         return {
             "message": "Password reset email sent"
         }
@@ -161,6 +173,7 @@ class AuthService:
             hashed = hash_password(data.new_password)
             client.hashed_password = hashed
         await redis_client.delete(f"reset_token:{data.reset_token}")
+        logger.info("password_reset", extra={"extra_fields": {"client_id": client_id}})
         return {
             "message": "Password is reset"
         }

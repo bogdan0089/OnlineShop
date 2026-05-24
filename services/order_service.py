@@ -25,7 +25,10 @@ from utils.connection_manager import connection
 from celery_app import send_order_status_email, send_new_order_notification
 from pydantic import TypeAdapter
 from core.config import settings
+from utils.logger import get_logger
 
+
+logger = get_logger(__name__)
 
 _orders_list_adapter = TypeAdapter(list[OrderOutputDTO])
 
@@ -37,6 +40,7 @@ class OrderService:
             order = await uow.order.create_order(OrderCreateInternalDTO(title=title, client_id=current_client.id))
         async for key in redis_client.scan_iter("order*"):
             await redis_client.unlink(key)
+        logger.info("order_created", extra={"extra_fields": {"order_id": order.id, "client_id": current_client.id}})
         return order
 
     @staticmethod
@@ -54,13 +58,14 @@ class OrderService:
             cached_key, _orders_list_adapter.dump_json(validated),
             ex=60,
             )
-        return validated 
+        return validated
 
     @staticmethod
     async def get_order(order_id: int, current_client: Client) -> Order:
         async with UnitOfWork() as uow:
             order = await uow.order.get_order(order_id)
             if not order:
+                logger.warning("order_not_found", extra={"extra_fields": {"order_id": order_id}})
                 raise OrderNotFoundError(order_id)
             if order.client_id != current_client.id and current_client.role != Role.superadmin:
                 raise InsufficientPermissionsError(
@@ -83,6 +88,7 @@ class OrderService:
             updated = await uow.order.orders_update(order, OrderUpdateDTO(title=title))
         async for key in redis_client.scan_iter("order*"):
             await redis_client.unlink(key)
+        logger.info("order_updated", extra={"extra_fields": {"order_id": order_id}})
         return updated
 
     @staticmethod
@@ -104,6 +110,7 @@ class OrderService:
             if any(op.product_id == product_id for op in order.order_products):
                 raise ProductAlready()
             await uow.order.add_product_to_order(order_id, product_id, quantity)
+            logger.info("product_added_to_order", extra={"extra_fields": {"order_id": order_id, "product_id": product_id}})
             return order
 
     @staticmethod
@@ -143,6 +150,7 @@ class OrderService:
             updated = await uow.order.update_order_status(order, status)
         async for key in redis_client.scan_iter("order*"):
             await redis_client.unlink(key)
+        logger.info("order_status_updated", extra={"extra_fields": {"order_id": order_id, "status": status.value}})
         return updated
 
     @staticmethod
@@ -173,6 +181,7 @@ class OrderService:
             order.status = OrderStatus.cancelled
         async for key in redis_client.scan_iter("order*"):
             await redis_client.unlink(key)
+        logger.info("order_cancelled", extra={"extra_fields": {"order_id": order_id, "client_id": current_client.id}})
         return order
 
     @staticmethod
@@ -195,7 +204,8 @@ class OrderService:
                 raise ProductNotApprovedError(product_id)
             order = await uow.order.create_order(OrderCreateInternalDTO(title=title, client_id=client_id))
             await uow.order.add_product_to_order(order.id, product.id, 1)
-            return order
+        logger.info("order_created_with_product", extra={"extra_fields": {"order_id": order.id, "client_id": client_id, "product_id": product_id}})
+        return order
 
     @staticmethod
     async def delete_product_from_order(order_id: int, product_id: int, current_client: Client) -> Order:
@@ -214,7 +224,8 @@ class OrderService:
             if not any(op.product_id == product_id for op in order.order_products):
                 raise ProductNotFound(product_id)
             await uow.order.remove_product_from_order(order_id, product_id)
-            return order
+        logger.info("product_removed_from_order", extra={"extra_fields": {"order_id": order_id, "product_id": product_id}})
+        return order
 
     @staticmethod
     async def get_order_with_products(order_id: int, current_client: Client) -> dict[str, Any]:
@@ -275,6 +286,7 @@ class OrderService:
             )
         async for key in redis_client.scan_iter("order*"):
             await redis_client.unlink(key)
+        logger.info("order_checkout", extra={"extra_fields": {"order_id": order_id, "client_id": current_client.id, "amount": amount}})
         return order
 
     @staticmethod

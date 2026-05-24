@@ -1,7 +1,10 @@
 from core.enum import TransactionType
 from database.unit_of_work import UnitOfWork
 from schemas.transaction.input_dto import TransactionCreateDTO
+from utils.logger import get_logger
 
+
+logger = get_logger(__name__)
 
 
 class PaymentService:
@@ -18,3 +21,4 @@ class PaymentService:
                     description="deposit",
                     client_fk=client.id
                 ))
+        logger.info("payment_success", extra={"extra_fields": {"client_id": client_id, "amount": amount}})

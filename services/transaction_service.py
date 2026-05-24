@@ -5,6 +5,10 @@ from core.exceptions import (
 )
 from database.unit_of_work import UnitOfWork
 from models.models import Client, Transaction
+from utils.logger import get_logger
+
+
+logger = get_logger(__name__)
 
 
 class TransactionService:
@@ -14,6 +18,7 @@ class TransactionService:
         async with UnitOfWork() as uow:
             transaction = await uow.transaction.get_transaction(transaction_id)
             if not transaction:
+                logger.warning("transaction_not_found", extra={"extra_fields": {"transaction_id": transaction_id}})
                 raise TransactionNotFound()
             if transaction.client_fk != current_client.id:
                 raise InsufficientPermissionsError(required_role="owner", client_role="client")
