@@ -48,7 +48,7 @@ fastapi-ecommerce-backend/
 ├── schemas/          # Pydantic v2 — request validation and response serialization
 ├── core/             # Config, 30+ custom exceptions, enums (Role, OrderStatus, etc.)
 ├── database/         # Async session, Unit of Work pattern
-├── utils/            # JWT dependencies, WebSocket connection manager
+├── utils/            # JWT dependencies, WebSocket connection manager, structured logger
 ├── alembic/          # Database migrations
 ├── tests/            # pytest integration tests
 ├── celery_app.py     # Celery tasks (email sending)
@@ -89,6 +89,7 @@ Router → Service → UnitOfWork → Repository → DB
 - **Order State Machine** — enforced transitions (`pending → completed / cancelled`, `completed → cancelled` only)
 - **Rate Limiting** — Redis-based per-IP counter on login and forgot-password endpoints; max 5 requests / 60s, returns HTTP 429
 - **AI Integration** — Groq API (LLaMA 3.3-70b-versatile) powers 4 features: personalized recommendations based on purchase history, semantic AI search, store assistant chatbot, and AI-generated product descriptions for admins
+- **Structured Logging** — `utils/logger.py` with `get_logger` utility outputs timestamped logs to stdout; all services log key business events at `INFO` level, not-found cases at `WARNING`; plain reads are intentionally skipped to keep logs clean
 - **CI/CD** — GitHub Actions runs 65 integration tests on every push and PR; on merge to `main` automatically deploys to AWS EC2 via SSH
 
 ---
