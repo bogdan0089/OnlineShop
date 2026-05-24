@@ -15,7 +15,10 @@ from schemas.client.output_dto import ClientOutputDTO
 from schemas.transaction.input_dto import TransactionCreateDTO
 from core.enum import Role, OrderStatus, TransactionType
 from pydantic import TypeAdapter
+from utils.logger import get_logger
 
+
+logger = get_logger(__name__)
 
 _client_list_adapter = TypeAdapter(list[ClientOutputDTO])
 
@@ -43,6 +46,7 @@ class ClientService:
         async with UnitOfWork() as uow:
             client = await uow.client.get_client(client_id)
             if not client:
+                logger.warning("client_not_found", extra={"extra_fields": {"client_id": client_id}})
                 raise ClientNotFoundError(client_id)
             if current_client.id != client.id and current_client.role != Role.superadmin:
                 raise InsufficientPermissionsError(
@@ -65,6 +69,7 @@ class ClientService:
             updated = await uow.client.client_update(client, data)
         async for key in redis_client.scan_iter("client*"):
             await redis_client.unlink(key)
+        logger.info("client_updated", extra={"extra_fields": {"client_id": client_id}})
         return updated
 
     @staticmethod
@@ -81,6 +86,7 @@ class ClientService:
             await uow.client.client_delete(client)
         async for key in redis_client.scan_iter("client*"):
             await redis_client.unlink(key)
+        logger.info("client_deleted", extra={"extra_fields": {"client_id": client_id}})
         return client
 
     @staticmethod
@@ -139,7 +145,9 @@ class ClientService:
                 description="deposit",
                 client_fk=client.id
             ))
-            return await uow.client.deposit_client(client, amount)
+            result = await uow.client.deposit_client(client, amount)
+        logger.info("client_deposit", extra={"extra_fields": {"client_id": client_id, "amount": amount}})
+        return result
 
     @staticmethod
     async def client_withdraw(client_id: int, amount: float, current_client: Client) -> Client:
@@ -162,4 +170,6 @@ class ClientService:
                 description="withdraw",
                 client_fk=client.id
             ))
-            return await uow.client.withdraw_client(client, amount)
+            result = await uow.client.withdraw_client(client, amount)
+        logger.info("client_withdraw", extra={"extra_fields": {"client_id": client_id, "amount": amount}})
+        return result

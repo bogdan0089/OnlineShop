@@ -1,10 +1,13 @@
 import aiosmtplib
 from email.mime.text import MIMEText
 from core.config import settings
+from utils.logger import get_logger
+
+
+logger = get_logger(__name__)
 
 
 class EmailService:
-
 
     @staticmethod
     async def send_verification_email(to_email: str, token: str):
@@ -20,7 +23,7 @@ class EmailService:
             password=settings.EMAIL_PASSWORD,
             start_tls=True
         )
-    
+        logger.info("verification_email_sent", extra={"extra_fields": {"to_email": to_email}})
 
     @staticmethod
     async def send_reset_password_email(to_email: str, token: str):
@@ -36,3 +39,4 @@ class EmailService:
             password=settings.EMAIL_PASSWORD,
             start_tls=True
         )
+        logger.info("reset_password_email_sent", extra={"extra_fields": {"to_email": to_email}})

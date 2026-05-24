@@ -6,7 +6,10 @@ from schemas.product.input_dto import ProductCreateDTO, ProductUpdateDTO
 from schemas.product.output_dto import ProductOutputDTO
 from core.enum import ProductStatus
 from pydantic import TypeAdapter
+from utils.logger import get_logger
 
+
+logger = get_logger(__name__)
 
 _product_list_adapter = TypeAdapter(list[ProductOutputDTO])
 
@@ -18,6 +21,7 @@ class ProductService:
             product = await uow.product.create_product(data)
         async for key in redis_client.scan_iter("product*"):
             await redis_client.unlink(key)
+        logger.info("product_created", extra={"extra_fields": {"product_id": product.id}})
         return product
 
     @staticmethod
@@ -25,6 +29,7 @@ class ProductService:
         async with UnitOfWork() as uow:
             product = await uow.product.get_product(product_id)
             if not product:
+                logger.warning("product_not_found", extra={"extra_fields": {"product_id": product_id}})
                 raise ProductNotFound(product_id)
             return product
 
@@ -71,6 +76,7 @@ class ProductService:
             updated = await uow.product.update_product(product, data)
         async for key in redis_client.scan_iter("product*"):
             await redis_client.unlink(key)
+        logger.info("product_updated", extra={"extra_fields": {"product_id": product_id}})
         return updated
 
     @staticmethod
@@ -82,6 +88,7 @@ class ProductService:
             updated = await uow.product.update_product_status(product, status)
         async for key in redis_client.scan_iter("product*"):
             await redis_client.unlink(key)
+        logger.info("product_status_updated", extra={"extra_fields": {"product_id": product_id, "status": status.value}})
         return updated
 
     @staticmethod
@@ -93,6 +100,7 @@ class ProductService:
             deleted = await uow.product.delete_product(product)
         async for key in redis_client.scan_iter("product*"):
             await redis_client.unlink(key)
+        logger.info("product_deleted", extra={"extra_fields": {"product_id": product_id}})
         return deleted
 
     @staticmethod
@@ -108,10 +116,9 @@ class ProductService:
         async with UnitOfWork() as uow:
             products = await uow.product.filter_by_price(min_price, max_price, limit, offset)
             return products or []
-        
+
     @staticmethod
     async def find_by_color(product_color: str, limit, offset) -> list[Product]:
         async with UnitOfWork() as uow:
             products = await uow.product.find_by_color(product_color, limit, offset)
             return products or []
-

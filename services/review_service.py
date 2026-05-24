@@ -1,6 +1,5 @@
 from schemas.review.input_dto import ReviewCreate
 from schemas.review.output_dto import ReviewResponse
-from models.models import Review
 from core.exceptions import (
 ReviewNotFoundError,
 ReviewsNotFoundError,
@@ -11,7 +10,10 @@ from pydantic import TypeAdapter
 from sqlalchemy.ext.asyncio import AsyncSession
 from repositories.review_repository import ReviewRepository
 from repositories.product_repository import ProductRepository
+from utils.logger import get_logger
 
+
+logger = get_logger(__name__)
 
 _review_list_adapter = TypeAdapter(list[ReviewResponse])
 
@@ -24,14 +26,16 @@ class ReviewService:
         review = await self._repo.create_review(data, client_id)
         async for key in redis_client.scan_iter("review*"):
             await redis_client.unlink(key)
+        logger.info("review_created", extra={"extra_fields": {"review_id": review.id, "client_id": client_id}})
         return ReviewResponse.model_validate(review)
-        
+
     async def get_review(self, review_id: int) -> ReviewResponse:
         review = await self._repo.get_review(review_id)
         if not review:
+            logger.warning("review_not_found", extra={"extra_fields": {"review_id": review_id}})
             raise ReviewNotFoundError(review_id)
         return ReviewResponse.model_validate(review)
-    
+
     async def get_reviews(self, limit: int, offset: int) -> list[ReviewResponse]:
         cached_key = f"reviews:limit:{limit}:offset:{offset}"
         cached = await redis_client.get(cached_key)
@@ -72,7 +76,4 @@ class ReviewService:
         await self._repo.delete_review(review)
         async for key in redis_client.scan_iter("review*"):
             await redis_client.unlink(key)
-
-
-        
-        
+        logger.info("review_deleted", extra={"extra_fields": {"review_id": review_id}})

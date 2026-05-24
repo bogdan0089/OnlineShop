@@ -5,12 +5,14 @@ from models.models import Category
 from core.redis import redis_client
 from pydantic import TypeAdapter
 from core.exceptions import CategoryNotFoundError
+from utils.logger import get_logger
 
+
+logger = get_logger(__name__)
 
 _category_list_adapter = TypeAdapter(list[CategoryOutputDTO])
 
 class CategoryService:
-
 
     @staticmethod
     async def create_category(data: CategoryCreateDTO) -> Category:
@@ -18,8 +20,8 @@ class CategoryService:
             category = await uow.category.create_category(data)
         async for key in redis_client.scan_iter("category*"):
             await redis_client.unlink(key)
+        logger.info("category_created", extra={"extra_fields": {"category_id": category.id, "name": data.name}})
         return category
-
 
     @staticmethod
     async def get_all_category(limit, offset) -> list[CategoryOutputDTO]:
@@ -43,7 +45,9 @@ class CategoryService:
         async with UnitOfWork() as uow:
             category = await uow.category.get_category(category_id)
             if not category:
+                logger.warning("category_not_found", extra={"extra_fields": {"category_id": category_id}})
                 raise CategoryNotFoundError(category_id)
             await uow.category.delete_category(category)
         async for key in redis_client.scan_iter("category*"):
             await redis_client.unlink(key)
+        logger.info("category_deleted", extra={"extra_fields": {"category_id": category_id}})
