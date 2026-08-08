@@ -114,3 +114,32 @@ def test_refund_already_cancelled(client, auth_headers):
     client.post(f"/order/{order_id}/refund", headers=auth_headers)
     response = client.post(f"/order/{order_id}/refund", headers=auth_headers)
     assert response.status_code == 400
+
+def test_add_product_zero_quantity(client, auth_headers):
+    product = client.post("/product/", json={"name": "zero-qty", "price": 10.0, "color": "black", "quantity": 5}, headers=auth_headers)
+    _db_execute("UPDATE products SET status='accept' WHERE name=%s", ("zero-qty",))
+    product_id = product.json()["id"]
+    order = client.post("/order/create_orders", json={"title": "Zero Qty"}, headers=auth_headers)
+    order_id = order.json()["id"]
+    response = client.post(f"/order/{order_id}/products/{product_id}?quantity=0", headers=auth_headers)
+    assert response.status_code == 422
+
+
+def test_add_product_negative_quantity(client, auth_headers):
+    product = client.post("/product/", json={"name": "neg-qty", "price": 10.0, "color": "black", "quantity": 5}, headers=auth_headers)
+    _db_execute("UPDATE products SET status='accept' WHERE name=%s", ("neg-qty",))
+    product_id = product.json()["id"]
+    order = client.post("/order/create_orders", json={"title": "Neg Qty"}, headers=auth_headers)
+    order_id = order.json()["id"]
+    response = client.post(f"/order/{order_id}/products/{product_id}?quantity=-5", headers=auth_headers)
+    assert response.status_code == 422
+
+
+def test_add_product_more_than_in_stock(client, auth_headers):
+    product = client.post("/product/", json={"name": "low-stock", "price": 10.0, "color": "black", "quantity": 2}, headers=auth_headers)
+    _db_execute("UPDATE products SET status='accept' WHERE name=%s", ("low-stock",))
+    product_id = product.json()["id"]
+    order = client.post("/order/create_orders", json={"title": "Too Many"}, headers=auth_headers)
+    order_id = order.json()["id"]
+    response = client.post(f"/order/{order_id}/products/{product_id}?quantity=3", headers=auth_headers)
+    assert response.status_code == 400

@@ -13,6 +13,7 @@ from core.exceptions import (
     ProductNotFound,
     ProductNotApprovedError,
     InvalidOrderTransitionError,
+    InvalidAmountError,
     OutOfStockError
 )
 from core.redis import redis_client
@@ -107,6 +108,10 @@ class OrderService:
                 raise ProductNotFound(product_id)
             if product.status != ProductStatus.accept:
                 raise ProductNotApprovedError(product.id)
+            if quantity < 1:
+                raise InvalidAmountError(quantity)
+            if product.quantity < quantity:
+                raise OutOfStockError(product_id)
             if any(op.product_id == product_id for op in order.order_products):
                 raise ProductAlready()
             await uow.order.add_product_to_order(order_id, product_id, quantity)
