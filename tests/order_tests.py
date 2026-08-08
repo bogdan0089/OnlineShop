@@ -159,3 +159,10 @@ def test_refund_restores_product_stock(client, auth_headers):
     assert client.get(f"/product/{product_id}").json()["quantity"] == 4
     client.post(f"/order/{order_id}/refund", headers=auth_headers)
     assert client.get(f"/product/{product_id}").json()["quantity"] == 7
+
+
+def test_update_order_status_forbidden_for_client(client, auth_headers):
+    order = client.post("/order/create_orders", json={"title": "Status Order"}, headers=auth_headers)
+    order_id = order.json()["id"]
+    response = client.put(f"/order/{order_id}/status", json={"status": "completed"}, headers=auth_headers)
+    assert response.status_code == 403
