@@ -143,3 +143,19 @@ def test_add_product_more_than_in_stock(client, auth_headers):
     order_id = order.json()["id"]
     response = client.post(f"/order/{order_id}/products/{product_id}?quantity=3", headers=auth_headers)
     assert response.status_code == 400
+
+
+def test_refund_restores_product_stock(client, auth_headers):
+    me = client.get("/client/me", headers=auth_headers)
+    client_id = me.json()["id"]
+    client.post(f"/client/{client_id}/deposit", headers=auth_headers, json={"amount": 1000})
+    product = client.post("/product/", json={"name": "restock-me", "price": 20.0, "color": "blue", "quantity": 7}, headers=auth_headers)
+    _db_execute("UPDATE products SET status='accept' WHERE name=%s", ("restock-me",))
+    product_id = product.json()["id"]
+    order = client.post("/order/create_orders", json={"title": "Restock Order"}, headers=auth_headers)
+    order_id = order.json()["id"]
+    client.post(f"/order/{order_id}/products/{product_id}?quantity=3", headers=auth_headers)
+    client.post(f"/order/{order_id}/checkout", headers=auth_headers)
+    assert client.get(f"/product/{product_id}").json()["quantity"] == 4
+    client.post(f"/order/{order_id}/refund", headers=auth_headers)
+    assert client.get(f"/product/{product_id}").json()["quantity"] == 7
