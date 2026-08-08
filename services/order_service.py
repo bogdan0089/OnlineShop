@@ -177,6 +177,8 @@ class OrderService:
             if order.status == OrderStatus.completed:
                 amount = sum(op.product.price * op.quantity for op in order.order_products)
                 client.balance += amount
+                for op in order.order_products:
+                    op.product.quantity += op.quantity
                 await uow.transaction.create_transaction(TransactionCreateDTO(
                     amount=amount,
                     type=TransactionType.refund,
