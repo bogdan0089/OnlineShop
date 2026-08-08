@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 from schemas.order.input_dto import (
     OrderCreateDTO,
     OrderUpdateDTO,
@@ -27,7 +27,10 @@ async def get_order(order_id: int, current_client: CurrentClient) -> OrderOutput
 
 @router_order.post("/{order_id}/products/{products_id}", response_model=OrderOutputDTO)
 async def add_product_to_order(
-    order_id: int, products_id: int, current_client: CurrentClient, quantity: int = 1
+    order_id: int,
+    products_id: int,
+    current_client: CurrentClient,
+    quantity: int = Query(1, ge=1),
 ) -> OrderOutputDTO:
     return await OrderService.add_product_to_order(order_id, products_id, quantity, current_client)
 
