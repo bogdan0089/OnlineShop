@@ -46,9 +46,9 @@ async def order_client_sum(order_id: int, current_client: CurrentClient) -> dict
 
 @router_order.put("/{order_id}/status", response_model=OrderOutputDTO)
 async def update_order_status(
-    order_id: int, data: OrderStatusUpdateDTO, current_client: CurrentClient
+    order_id: int, data: OrderStatusUpdateDTO, current_admin: CurrentAdmin
 ) -> OrderOutputDTO:
-    return await OrderService.update_order_status(order_id, data.status, current_client)
+    return await OrderService.update_order_status(order_id, data.status, current_admin)
 
 @router_order.post("/orders", response_model=OrderOutputDTO)
 async def create_order_for_client(
