@@ -1,3 +1,4 @@
+from decimal import Decimal
 from typing import Any
 
 from pydantic import TypeAdapter
@@ -35,6 +36,30 @@ logger = get_logger(__name__)
 _orders_list_adapter = TypeAdapter(list[OrderOutputDTO])
 
 class OrderService:
+
+    @staticmethod
+    def _refund_amount(order: Order) -> Decimal:
+        """Sum of what the client actually paid, line by line.
+
+        Orders placed before price_at_purchase existed fall back to the current
+        price, which is the old behaviour and can differ from what was charged.
+        """
+        total = Decimal("0.00")
+        for op in order.order_products:
+            price = op.price_at_purchase
+            if price is None:
+                logger.warning(
+                    "refund_without_purchase_price",
+                    extra={
+                        "extra_fields": {
+                            "order_id": order.id,
+                            "product_id": op.product_id,
+                        }
+                    },
+                )
+                price = op.product.price
+            total += price * op.quantity
+        return total
 
     @staticmethod
     async def create_order(title: str, current_client: Client) -> Order:
@@ -179,7 +204,7 @@ class OrderService:
             if order.status == OrderStatus.cancelled:
                 raise OrderCannotBeCancelledError(order_id)
             if order.status == OrderStatus.completed:
-                amount = sum(op.product.price * op.quantity for op in order.order_products)
+                amount = OrderService._refund_amount(order)
                 client.balance += amount
                 for op in order.order_products:
                     op.product.quantity += op.quantity
@@ -288,6 +313,9 @@ class OrderService:
             client.balance -= amount
             for op in order.order_products:
                 op.product.quantity -= op.quantity
+                # The price the client actually paid. A refund must use this,
+                # not whatever the product costs by the time it is returned.
+                op.price_at_purchase = op.product.price
             await uow.transaction.create_transaction(TransactionCreateDTO(
                 amount=amount,
                 type=TransactionType.purchase,

@@ -91,6 +91,9 @@ class OrderProduct(Base):
     order_id: Mapped[int] = mapped_column(ForeignKey("orders.id"), primary_key=True)
     product_id: Mapped[int] = mapped_column(ForeignKey("products.id"), primary_key=True)
     quantity: Mapped[int] = mapped_column(default=1)
+    price_at_purchase: Mapped[Decimal | None] = mapped_column(
+        Numeric(10, 2), nullable=True, default=None
+    )
     order: Mapped["Order"] = relationship(back_populates="order_products")
     product: Mapped["Product"] = relationship(back_populates="order_products", lazy="selectin")
 
