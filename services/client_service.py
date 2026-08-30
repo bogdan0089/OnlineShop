@@ -1,4 +1,4 @@
-import json
+﻿import json
 from decimal import Decimal
 from typing import Any
 
@@ -18,6 +18,7 @@ from models.models import Client
 from schemas.client.input_dto import ClientUpdateDTO
 from schemas.client.output_dto import ClientOutputDTO
 from schemas.transaction.input_dto import TransactionCreateDTO
+from utils import cache
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -69,8 +70,7 @@ class ClientService:
                     client_role=current_client.role.value
                 )
             updated = await uow.client.client_update(client, data)
-        async for key in redis_client.scan_iter("client*"):
-            await redis_client.unlink(key)
+        await cache.invalidate("client")
         logger.info("client_updated", extra={"extra_fields": {"client_id": client_id}})
         return updated
 
@@ -86,8 +86,7 @@ class ClientService:
                     client_role=current_client.role.value
                 )
             await uow.client.client_delete(client)
-        async for key in redis_client.scan_iter("client*"):
-            await redis_client.unlink(key)
+        await cache.invalidate("client")
         logger.info("client_deleted", extra={"extra_fields": {"client_id": client_id}})
         return client
 
@@ -177,3 +176,4 @@ class ClientService:
             result = await uow.client.withdraw_client(client, amount)
         logger.info("client_withdraw", extra={"extra_fields": {"client_id": client_id, "amount": amount}})
         return result
+

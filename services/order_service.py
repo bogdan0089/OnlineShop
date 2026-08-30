@@ -1,4 +1,4 @@
-from decimal import Decimal
+﻿from decimal import Decimal
 from typing import Any
 
 from pydantic import TypeAdapter
@@ -15,7 +15,6 @@ from core.exceptions import (
     OrderAlready,
     OrderCannotBeCancelledError,
     OrderNotFoundError,
-    OrdersNotFound,
     OrderUpdateError,
     OutOfStockError,
     ProductAlready,
@@ -28,6 +27,7 @@ from models.models import Client, Order
 from schemas.order.input_dto import OrderCreateInternalDTO, OrderUpdateDTO
 from schemas.order.output_dto import OrderOutputDTO
 from schemas.transaction.input_dto import TransactionCreateDTO
+from utils import cache
 from utils.connection_manager import connection
 from utils.logger import get_logger
 
@@ -65,8 +65,7 @@ class OrderService:
     async def create_order(title: str, current_client: Client) -> Order:
         async with UnitOfWork() as uow:
             order = await uow.order.create_order(OrderCreateInternalDTO(title=title, client_id=current_client.id))
-        async for key in redis_client.scan_iter("order*"):
-            await redis_client.unlink(key)
+        await cache.invalidate("order")
         logger.info("order_created", extra={"extra_fields": {"order_id": order.id, "client_id": current_client.id}})
         return order
 
@@ -79,7 +78,9 @@ class OrderService:
         async with UnitOfWork() as uow:
             orders = await uow.order.get_orders(limit=limit, offset=offset)
             if not orders:
-                raise OrdersNotFound()
+                # An empty page is a valid answer, not an error - get_my_orders
+                # already returns [] and both should behave the same.
+                return []
             validated = _orders_list_adapter.validate_python(orders)
         await redis_client.set(
             cached_key, _orders_list_adapter.dump_json(validated),
@@ -113,8 +114,7 @@ class OrderService:
                     client_role=current_client.role.value
                 )
             updated = await uow.order.orders_update(order, OrderUpdateDTO(title=title))
-        async for key in redis_client.scan_iter("order*"):
-            await redis_client.unlink(key)
+        await cache.invalidate("order")
         logger.info("order_updated", extra={"extra_fields": {"order_id": order_id}})
         return updated
 
@@ -182,8 +182,7 @@ class OrderService:
             client = await uow.client.get_client(order.client_id)
             send_order_status_email.delay(client.email, order_id, status.value)
             updated = await uow.order.update_order_status(order, status)
-        async for key in redis_client.scan_iter("order*"):
-            await redis_client.unlink(key)
+        await cache.invalidate("order")
         logger.info("order_status_updated", extra={"extra_fields": {"order_id": order_id, "status": status.value}})
         return updated
 
@@ -207,7 +206,7 @@ class OrderService:
                 amount = OrderService._refund_amount(order)
                 client.balance += amount
                 for op in order.order_products:
-                    op.product.quantity += op.quantity
+                    await uow.product.increase_stock(op.product_id, op.quantity)
                 await uow.transaction.create_transaction(TransactionCreateDTO(
                     amount=amount,
                     type=TransactionType.refund,
@@ -215,8 +214,7 @@ class OrderService:
                     client_fk=client.id,
                 ))
             order.status = OrderStatus.cancelled
-        async for key in redis_client.scan_iter("order*"):
-            await redis_client.unlink(key)
+        await cache.invalidate("order")
         logger.info("order_cancelled", extra={"extra_fields": {"order_id": order_id, "client_id": current_client.id}})
         return order
 
@@ -305,14 +303,15 @@ class OrderService:
             if not client:
                 raise ClientNotFoundError(current_client.id)
             amount = sum(op.product.price * op.quantity for op in order.order_products)
-            for op in order.order_products:
-                if op.product.quantity < op.quantity:
-                    raise OutOfStockError(op.product_id)
             if client.balance < amount:
                 raise NotEnoughMoneyError(order.client_id)
             client.balance -= amount
-            for op in order.order_products:
-                op.product.quantity -= op.quantity
+
+            # Sorted by product id so two orders sharing products always lock
+            # them in the same order and cannot deadlock each other.
+            for op in sorted(order.order_products, key=lambda line: line.product_id):
+                if not await uow.product.decrease_stock(op.product_id, op.quantity):
+                    raise OutOfStockError(op.product_id)
                 # The price the client actually paid. A refund must use this,
                 # not whatever the product costs by the time it is returned.
                 op.price_at_purchase = op.product.price
@@ -323,20 +322,24 @@ class OrderService:
                 client_fk=client.id,
             ))
             order.status = OrderStatus.completed
-            send_order_status_email.delay(
-                to_email=current_client.email,
-                order_id=order.id,
-                status=OrderStatus.completed.value
-            )
-            await connection.broadcast(f"New order {order_id} checked out by client {current_client.id}")
-            send_new_order_notification.delay(
-                admin_email=settings.EMAIL_USER,
-                order_id=order.id,
-                client_email=current_client.email,
-                amount=amount
-            )
-        async for key in redis_client.scan_iter("order*"):
-            await redis_client.unlink(key)
+
+        # Announced only after the transaction committed. Queued inside it, a
+        # later rollback would still have sent mail about an order that never was.
+        send_order_status_email.delay(
+            to_email=current_client.email,
+            order_id=order.id,
+            status=OrderStatus.completed.value
+        )
+        send_new_order_notification.delay(
+            admin_email=settings.EMAIL_USER,
+            order_id=order.id,
+            client_email=current_client.email,
+            amount=float(amount)
+        )
+        await connection.broadcast(
+            f"New order {order_id} checked out by client {current_client.id}"
+        )
+        await cache.invalidate("order")
         logger.info(
             "order_checkout",
             extra={
@@ -356,3 +359,4 @@ class OrderService:
             if not orders:
                 return []
             return orders
+

@@ -1,4 +1,4 @@
-from pydantic import TypeAdapter
+﻿from pydantic import TypeAdapter
 
 from core.enum import ProductStatus
 from core.exceptions import ProductNotFound
@@ -7,6 +7,7 @@ from database.unit_of_work import UnitOfWork
 from models.models import Product
 from schemas.product.input_dto import ProductCreateDTO, ProductUpdateDTO
 from schemas.product.output_dto import ProductOutputDTO
+from utils import cache
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -19,8 +20,7 @@ class ProductService:
     async def create_product(data: ProductCreateDTO) -> Product:
         async with UnitOfWork() as uow:
             product = await uow.product.create_product(data)
-        async for key in redis_client.scan_iter("product*"):
-            await redis_client.unlink(key)
+        await cache.invalidate("product")
         logger.info("product_created", extra={"extra_fields": {"product_id": product.id}})
         return product
 
@@ -74,8 +74,7 @@ class ProductService:
             if not product:
                 raise ProductNotFound(product_id)
             updated = await uow.product.update_product(product, data)
-        async for key in redis_client.scan_iter("product*"):
-            await redis_client.unlink(key)
+        await cache.invalidate("product")
         logger.info("product_updated", extra={"extra_fields": {"product_id": product_id}})
         return updated
 
@@ -86,8 +85,7 @@ class ProductService:
             if not product:
                 raise ProductNotFound(product_id)
             updated = await uow.product.update_product_status(product, status)
-        async for key in redis_client.scan_iter("product*"):
-            await redis_client.unlink(key)
+        await cache.invalidate("product")
         logger.info(
             "product_status_updated",
             extra={"extra_fields": {"product_id": product_id, "status": status.value}},
@@ -101,8 +99,7 @@ class ProductService:
             if not product:
                 raise ProductNotFound(product_id)
             deleted = await uow.product.delete_product(product)
-        async for key in redis_client.scan_iter("product*"):
-            await redis_client.unlink(key)
+        await cache.invalidate("product")
         logger.info("product_deleted", extra={"extra_fields": {"product_id": product_id}})
         return deleted
 
@@ -125,3 +122,4 @@ class ProductService:
         async with UnitOfWork() as uow:
             products = await uow.product.find_by_color(product_color, limit, offset)
             return products or []
+

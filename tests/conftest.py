@@ -66,8 +66,10 @@ def setup_test_db():
     category_svc.redis_client = fake
     review_svc.redis_client = fake
 
+    import utils.cache as cache_module
     import utils.dependencies as deps_module
     deps_module.redis_client = fake
+    cache_module.redis_client = fake
 
     # Without this every checkout would open a real AMQP connection: the suite
     # hangs on retries when no broker is running, and sends real email when one is.
