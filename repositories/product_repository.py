@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -26,6 +26,29 @@ class ProductRepository:
             .options(selectinload(Product.category))
         )
         return result.scalars().first()
+
+    async def decrease_stock(self, product_id: int, quantity: int) -> bool:
+        """Take stock only if there is enough, in a single statement.
+
+        Reading the quantity and then writing it lets two concurrent checkouts
+        both pass the check and drive stock negative. The WHERE clause makes
+        the database do the comparison, so exactly one of them updates a row.
+        """
+        statement = (
+            update(Product)
+            .where(Product.id == product_id, Product.quantity >= quantity)
+            .values(quantity=Product.quantity - quantity)
+        )
+        result = await self.session.execute(statement)
+        return result.rowcount == 1
+
+    async def increase_stock(self, product_id: int, quantity: int) -> None:
+        statement = (
+            update(Product)
+            .where(Product.id == product_id)
+            .values(quantity=Product.quantity + quantity)
+        )
+        await self.session.execute(statement)
 
     async def get_product(self, product_id: int) -> Product | None:
         stmt = await self.session.execute(

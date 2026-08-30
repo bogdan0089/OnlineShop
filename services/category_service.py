@@ -1,4 +1,4 @@
-from pydantic import TypeAdapter
+﻿from pydantic import TypeAdapter
 from sqlalchemy.exc import IntegrityError
 
 from core.exceptions import CategoryAlreadyExistsError, CategoryNotFoundError
@@ -7,6 +7,7 @@ from database.unit_of_work import UnitOfWork
 from models.models import Category
 from schemas.category.input_dto import CategoryCreateDTO
 from schemas.category.output_dto import CategoryOutputDTO
+from utils import cache
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -22,8 +23,7 @@ class CategoryService:
                 category = await uow.category.create_category(data)
         except IntegrityError as exc:
             raise CategoryAlreadyExistsError(data.name) from exc
-        async for key in redis_client.scan_iter("category*"):
-            await redis_client.unlink(key)
+        await cache.invalidate("category")
         logger.info("category_created", extra={"extra_fields": {"category_id": category.id, "name": data.name}})
         return category
 
@@ -52,6 +52,6 @@ class CategoryService:
                 logger.warning("category_not_found", extra={"extra_fields": {"category_id": category_id}})
                 raise CategoryNotFoundError(category_id)
             await uow.category.delete_category(category)
-        async for key in redis_client.scan_iter("category*"):
-            await redis_client.unlink(key)
+        await cache.invalidate("category")
         logger.info("category_deleted", extra={"extra_fields": {"category_id": category_id}})
+

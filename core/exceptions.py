@@ -212,3 +212,19 @@ class CategoryAlreadyExistsError(BaseAppException):
             status_code=status.HTTP_409_CONFLICT,
             detail=f"Category '{name}' already exists."
         )
+
+
+class ReviewAlreadyExistsError(BaseAppException):
+    def __init__(self, product_id: int):
+        super().__init__(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"You have already reviewed product {product_id}."
+        )
+
+
+class InvalidWebhookSignatureError(BaseAppException):
+    def __init__(self):
+        super().__init__(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid webhook signature."
+        )

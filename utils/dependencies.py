@@ -48,13 +48,30 @@ async def get_current_moderator(client: Client = Depends(get_current_client)) ->
 CurrentModerator = Annotated[Client, Depends(get_current_moderator)]
 
 
+RATE_LIMIT_REQUESTS = 5
+RATE_LIMIT_WINDOW_SECONDS = 60
+
+
+def client_ip(request: Request) -> str:
+    """The caller's address, or the proxy's if it did not forward one.
+
+    Behind nginx every request comes from the proxy, so without this the limit
+    would be shared by everyone: six requests from anybody would lock out all.
+    """
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
 async def rate_limit(request: Request):
-    ip = request.client.host
-    limit = f"rate_limit:{ip}"
-    if int(await redis_client.get(limit) or 0) > 5:
+    key = f"rate_limit:{client_ip(request)}"
+    used = await redis_client.incr(key)
+    if used == 1:
+        # Only the first request of a window sets the expiry. Refreshing it on
+        # every call kept the counter alive forever for an active caller.
+        await redis_client.expire(key, RATE_LIMIT_WINDOW_SECONDS)
+    if used > RATE_LIMIT_REQUESTS:
         raise TooManyRequests()
-    else:
-        await redis_client.incr(limit)
-        await redis_client.expire(limit, 60)
 
 RateLimit = Annotated[None, Depends(rate_limit)]
