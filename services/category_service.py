@@ -1,12 +1,12 @@
+from pydantic import TypeAdapter
+
+from core.exceptions import CategoryNotFoundError
+from core.redis import redis_client
 from database.unit_of_work import UnitOfWork
+from models.models import Category
 from schemas.category.input_dto import CategoryCreateDTO
 from schemas.category.output_dto import CategoryOutputDTO
-from models.models import Category
-from core.redis import redis_client
-from pydantic import TypeAdapter
-from core.exceptions import CategoryNotFoundError
 from utils.logger import get_logger
-
 
 logger = get_logger(__name__)
 

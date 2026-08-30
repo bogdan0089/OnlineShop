@@ -1,5 +1,5 @@
-from pydantic import BaseModel, Field, EmailStr, field_validator
-from typing import Optional
+
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 
 class ClientCreateDTO(BaseModel):
@@ -24,7 +24,7 @@ class ClientCreateDTO(BaseModel):
 class ClientUpdateDTO(BaseModel):
     name: str = Field(..., min_length=1)
     age: int = Field(..., gt=0)
-    address: Optional[str] = None
+    address: str | None = None
 
 
 class ClientBalanceOperationDTO(BaseModel):

@@ -1,9 +1,8 @@
 from fastapi import APIRouter
-from services.ai_service import AiService
-from utils.dependencies import CurrentClient, CurrentAdmin
-from schemas.product.input_dto import ProductGenerateDescriptionDTO, AiChatDTO
-from utils.dependencies import RateLimit
 
+from schemas.product.input_dto import AiChatDTO, ProductGenerateDescriptionDTO
+from services.ai_service import AiService
+from utils.dependencies import CurrentAdmin, CurrentClient, RateLimit
 
 router_ai = APIRouter(prefix="/ai", tags=["AI"])
 
@@ -13,7 +12,9 @@ async def get_client_recommendations(_: RateLimit, current_client: CurrentClient
     return await AiService.get_client_recommendations(current_client.id)
 
 @router_ai.post("/generate-description")
-async def product_generate_description(_rate: RateLimit, _admin: CurrentAdmin, data: ProductGenerateDescriptionDTO) -> str:
+async def product_generate_description(
+    _rate: RateLimit, _admin: CurrentAdmin, data: ProductGenerateDescriptionDTO
+) -> str:
     return await AiService.generate_product_description(data.product_name)
 
 @router_ai.post("/chat")

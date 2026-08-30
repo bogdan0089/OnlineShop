@@ -1,7 +1,9 @@
 import uuid
+
 import pytest
 from pydantic import ValidationError
-from schemas.client.input_dto import ClientCreateDTO, ClientUpdateDTO, ClientBalanceOperationDTO
+
+from schemas.client.input_dto import ClientBalanceOperationDTO, ClientCreateDTO, ClientUpdateDTO
 
 
 def test_register(client):

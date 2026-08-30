@@ -1,11 +1,11 @@
 from fastapi import APIRouter
-from schemas.client.input_dto import ClientUpdateDTO, ClientBalanceOperationDTO
-from schemas.client.output_dto import ClientOutputDTO, ClientOrdersCountDTO
+
+from schemas.client.input_dto import ClientBalanceOperationDTO, ClientUpdateDTO
+from schemas.client.output_dto import ClientOrdersCountDTO, ClientOutputDTO
 from schemas.order.output_dto import OrderOutputDTO
 from services.client_service import ClientService
 from services.order_service import OrderService
-from utils.dependencies import CurrentClient, CurrentAdmin
-
+from utils.dependencies import CurrentAdmin, CurrentClient
 
 router_client = APIRouter(prefix="/client", tags=["Clients"])
 

@@ -1,9 +1,9 @@
 from fastapi import APIRouter
-from schemas.product.input_dto import ProductCreateDTO, ProductUpdateDTO, ProductStatusUpdateDTO
+
+from schemas.product.input_dto import ProductCreateDTO, ProductStatusUpdateDTO, ProductUpdateDTO
 from schemas.product.output_dto import ProductOutputDTO
 from services.product_service import ProductService
-from utils.dependencies import CurrentClient, CurrentAdmin, CurrentModerator
-
+from utils.dependencies import CurrentAdmin, CurrentClient, CurrentModerator
 
 router_product = APIRouter(prefix="/product", tags=["Products"])
 

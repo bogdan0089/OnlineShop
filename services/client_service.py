@@ -1,5 +1,9 @@
 import json
 from typing import Any
+
+from pydantic import TypeAdapter
+
+from core.enum import OrderStatus, Role, TransactionType
 from core.exceptions import (
     ClientNotFoundError,
     ClientsNotFoundError,
@@ -13,10 +17,7 @@ from models.models import Client
 from schemas.client.input_dto import ClientUpdateDTO
 from schemas.client.output_dto import ClientOutputDTO
 from schemas.transaction.input_dto import TransactionCreateDTO
-from core.enum import Role, OrderStatus, TransactionType
-from pydantic import TypeAdapter
 from utils.logger import get_logger
-
 
 logger = get_logger(__name__)
 

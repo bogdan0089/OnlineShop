@@ -1,5 +1,6 @@
 import pytest
 from pydantic import ValidationError
+
 from schemas.product.input_dto import ProductCreateDTO, ProductUpdateDTO
 from tests.conftest import _db_execute
 

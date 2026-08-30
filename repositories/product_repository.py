@@ -1,10 +1,12 @@
-from typing import Sequence
+from collections.abc import Sequence
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+from core.enum import ProductStatus
 from models.models import Product
 from schemas.product.input_dto import ProductCreateDTO, ProductUpdateDTO
-from core.enum import ProductStatus
-from sqlalchemy.orm import selectinload
 
 
 class ProductRepository:
