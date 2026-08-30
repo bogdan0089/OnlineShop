@@ -6,6 +6,7 @@ from repositories.client_repository import ClientRepository
 from repositories.order_repository import OrderRepository
 from repositories.product_repository import ProductRepository
 from repositories.review_repository import ReviewRepository
+from repositories.stripe_event_repository import StripeEventRepository
 from repositories.transaction_repository import TransactionRepository
 
 
@@ -22,6 +23,7 @@ class UnitOfWork:
         self.transaction = TransactionRepository(self.session)
         self.category = CategoryRepository(self.session)
         self.review = ReviewRepository(self.session)
+        self.stripe_event = StripeEventRepository(self.session)
         return self
 
     async def __aexit__(self, exc_type, exc, tb) -> None:

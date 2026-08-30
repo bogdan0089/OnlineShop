@@ -1,7 +1,16 @@
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import Column, ForeignKey, Numeric, String, Table
+from sqlalchemy import (
+    Column,
+    DateTime,
+    ForeignKey,
+    Numeric,
+    String,
+    Table,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -22,6 +31,21 @@ class Transaction(Base):
     client: Mapped["Client"] = relationship(back_populates="transactions")
 
 
+class ProcessedStripeEvent(Base):
+    """One row per Stripe event we have already acted on.
+
+    Stripe retries a webhook until it gets a 2xx and can deliver the same event
+    more than once, so the id is the guard against crediting a payment twice.
+    """
+
+    __tablename__ = "processed_stripe_events"
+
+    event_id: Mapped[str] = mapped_column(String(255), primary_key=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
 class Client(Base):
     __tablename__ = "clients"
 
@@ -36,7 +60,7 @@ class Client(Base):
     is_verified: Mapped[bool] = mapped_column(default=False)
     is_active: Mapped[bool] = mapped_column(default=True)
     reviews: Mapped[list["Review"]] = relationship(back_populates="client")
-    address: Mapped[str] = mapped_column(nullable=True)
+    address: Mapped[str | None] = mapped_column(nullable=True)
     role: Mapped[Role] = mapped_column(SAEnum(Role, values_callable=lambda x: [e.value for e in x]),
         default=Role.client,
     )
@@ -108,10 +132,16 @@ class Category(Base):
 
 class Review(Base):
     __tablename__ = "reviews"
+    __table_args__ = (
+        UniqueConstraint("client_id", "product_id", name="uq_review_per_client_product"),
+    )
+
     id: Mapped[int] = mapped_column(primary_key=True)
     rating: Mapped[int] = mapped_column(nullable=False)
     comment: Mapped[str | None] = mapped_column(nullable=True)
-    created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
     client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"))
     product_id: Mapped[int] = mapped_column(ForeignKey("products.id"))
 

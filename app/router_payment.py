@@ -4,6 +4,7 @@ import stripe
 from fastapi import APIRouter, Request
 
 from core.config import settings
+from core.exceptions import InvalidWebhookSignatureError
 from schemas.transaction.input_dto import PaymentRequestDTO
 from services.payment_service import PaymentService
 from utils.dependencies import CurrentClient, RateLimit
@@ -27,14 +28,19 @@ async def payment_create(_: RateLimit, data: PaymentRequestDTO, current_client: 
 async def stripe_webhook(request: Request):
     payload = await request.body()
     sig_header = request.headers.get("stripe-signature")
-    event = stripe.Webhook.construct_event(
-        payload, sig_header, settings.STRIPE_WEBHOOK_SECRET
-    )
+    try:
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, settings.STRIPE_WEBHOOK_SECRET
+        )
+    except (ValueError, stripe.error.SignatureVerificationError) as exc:
+        # A 5xx here would make Stripe retry a request that can never succeed.
+        raise InvalidWebhookSignatureError() from exc
+
     if event["type"] == "payment_intent.succeeded":
         intent = event["data"]["object"]
         client_id = int(intent["metadata"]["client_id"])
         amount = Decimal(intent["amount"]) / 100
-        await PaymentService.handle_payment_success(client_id, amount)
+        await PaymentService.handle_payment_success(event["id"], client_id, amount)
     return {
         "status": "ok"
     }
