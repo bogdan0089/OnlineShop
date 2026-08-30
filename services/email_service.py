@@ -1,8 +1,9 @@
-import aiosmtplib
 from email.mime.text import MIMEText
+
+import aiosmtplib
+
 from core.config import settings
 from utils.logger import get_logger
-
 
 logger = get_logger(__name__)
 

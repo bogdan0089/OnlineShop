@@ -1,18 +1,18 @@
 from fastapi import APIRouter, Depends
 from fastapi.security import OAuth2PasswordRequestForm
+
 from schemas.auth.input_dto import (
     ChangePasswordDTO,
-    RefreshRequestDTO,
     ChangeRoleDTO,
-    ResetPasswordDTO,
     ForgotPasswordDTO,
+    RefreshRequestDTO,
+    ResetPasswordDTO,
 )
-from schemas.auth.output_dto import TokenOutputDTO, RefreshOutputDTO
+from schemas.auth.output_dto import RefreshOutputDTO, TokenOutputDTO
 from schemas.client.input_dto import ClientCreateDTO
 from schemas.client.output_dto import ClientOutputDTO
 from services.auth_service import AuthService
-from utils.dependencies import CurrentClient, CurrentAdmin, RateLimit
-
+from utils.dependencies import CurrentAdmin, CurrentClient, RateLimit
 
 router_auth = APIRouter(prefix="/auth", tags=["Auth"])
 

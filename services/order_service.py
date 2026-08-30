@@ -1,20 +1,25 @@
 from typing import Any
-from core.enum import OrderStatus, TransactionType, ProductStatus, Role
+
+from pydantic import TypeAdapter
+
+from celery_app import send_new_order_notification, send_order_status_email
+from core.config import settings
+from core.enum import OrderStatus, ProductStatus, Role, TransactionType
 from core.exceptions import (
     ClientNotFoundError,
     InsufficientPermissionsError,
+    InvalidAmountError,
+    InvalidOrderTransitionError,
     NotEnoughMoneyError,
     OrderAlready,
     OrderCannotBeCancelledError,
     OrderNotFoundError,
-    OrderUpdateError,
     OrdersNotFound,
+    OrderUpdateError,
+    OutOfStockError,
     ProductAlready,
-    ProductNotFound,
     ProductNotApprovedError,
-    InvalidOrderTransitionError,
-    InvalidAmountError,
-    OutOfStockError
+    ProductNotFound,
 )
 from core.redis import redis_client
 from database.unit_of_work import UnitOfWork
@@ -23,11 +28,7 @@ from schemas.order.input_dto import OrderCreateInternalDTO, OrderUpdateDTO
 from schemas.order.output_dto import OrderOutputDTO
 from schemas.transaction.input_dto import TransactionCreateDTO
 from utils.connection_manager import connection
-from celery_app import send_order_status_email, send_new_order_notification
-from pydantic import TypeAdapter
-from core.config import settings
 from utils.logger import get_logger
-
 
 logger = get_logger(__name__)
 
@@ -115,7 +116,10 @@ class OrderService:
             if any(op.product_id == product_id for op in order.order_products):
                 raise ProductAlready()
             await uow.order.add_product_to_order(order_id, product_id, quantity)
-            logger.info("product_added_to_order", extra={"extra_fields": {"order_id": order_id, "product_id": product_id}})
+            logger.info(
+                "product_added_to_order",
+                extra={"extra_fields": {"order_id": order_id, "product_id": product_id}},
+            )
             return order
 
     @staticmethod
@@ -211,7 +215,16 @@ class OrderService:
                 raise ProductNotApprovedError(product_id)
             order = await uow.order.create_order(OrderCreateInternalDTO(title=title, client_id=client_id))
             await uow.order.add_product_to_order(order.id, product.id, 1)
-        logger.info("order_created_with_product", extra={"extra_fields": {"order_id": order.id, "client_id": client_id, "product_id": product_id}})
+        logger.info(
+            "order_created_with_product",
+            extra={
+                "extra_fields": {
+                    "order_id": order.id,
+                    "client_id": client_id,
+                    "product_id": product_id,
+                }
+            },
+        )
         return order
 
     @staticmethod
@@ -231,7 +244,10 @@ class OrderService:
             if not any(op.product_id == product_id for op in order.order_products):
                 raise ProductNotFound(product_id)
             await uow.order.remove_product_from_order(order_id, product_id)
-        logger.info("product_removed_from_order", extra={"extra_fields": {"order_id": order_id, "product_id": product_id}})
+        logger.info(
+            "product_removed_from_order",
+            extra={"extra_fields": {"order_id": order_id, "product_id": product_id}},
+        )
         return order
 
     @staticmethod
@@ -293,7 +309,16 @@ class OrderService:
             )
         async for key in redis_client.scan_iter("order*"):
             await redis_client.unlink(key)
-        logger.info("order_checkout", extra={"extra_fields": {"order_id": order_id, "client_id": current_client.id, "amount": amount}})
+        logger.info(
+            "order_checkout",
+            extra={
+                "extra_fields": {
+                    "order_id": order_id,
+                    "client_id": current_client.id,
+                    "amount": amount,
+                }
+            },
+        )
         return order
 
     @staticmethod

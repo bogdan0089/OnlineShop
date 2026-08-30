@@ -1,9 +1,10 @@
 import smtplib
 from email.mime.text import MIMEText
+
 from celery import Celery
+
 from core.config import settings
 from core.enum import OrderStatus
-
 
 celery = Celery(
     "tasks",

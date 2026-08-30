@@ -1,11 +1,13 @@
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from database.database import async_session_maker
+from repositories.category_repository import CategoryRepository
 from repositories.client_repository import ClientRepository
 from repositories.order_repository import OrderRepository
 from repositories.product_repository import ProductRepository
-from repositories.transaction_repository import TransactionRepository
-from repositories.category_repository import CategoryRepository
 from repositories.review_repository import ReviewRepository
+from repositories.transaction_repository import TransactionRepository
+
 
 class UnitOfWork:
     def __init__(self) -> None:

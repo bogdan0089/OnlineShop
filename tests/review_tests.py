@@ -1,4 +1,3 @@
-import pytest
 from tests.conftest import _db_execute
 
 

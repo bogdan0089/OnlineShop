@@ -1,10 +1,12 @@
-from typing import Sequence
+from collections.abc import Sequence
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
+
 from models.models import Client
-from schemas.client.input_dto import ClientUpdateDTO, ClientCreateDTO
 from schemas.auth.input_dto import ChangeRoleDTO
+from schemas.client.input_dto import ClientCreateDTO, ClientUpdateDTO
 
 
 class ClientRepository:
@@ -29,7 +31,7 @@ class ClientRepository:
     async def get_all_clients(self, limit: int, offset: int) -> Sequence[Client]:
         result = await self.session.execute(
             select(Client)
-            .where(Client.is_active == True)
+            .where(Client.is_active.is_(True))
             .limit(limit).offset(offset)
         )
         return result.scalars().all()
@@ -38,7 +40,7 @@ class ClientRepository:
         result = await self.session.execute(
             select(Client)
             .where(Client.id == client_id)
-            .where(Client.is_active == True)
+            .where(Client.is_active.is_(True))
         )
         return result.scalars().first()
     
@@ -46,7 +48,7 @@ class ClientRepository:
         result = await self.session.execute(
             select(Client)
             .where(Client.id == client_id)
-            .where(Client.is_active == True)
+            .where(Client.is_active.is_(True))
             .with_for_update()
         )
         return result.scalars().first()
@@ -55,7 +57,7 @@ class ClientRepository:
         result = await self.session.execute(
             select(Client)
             .where(Client.email == email.lower())
-            .where(Client.is_active == True)
+            .where(Client.is_active.is_(True))
         )
         return result.scalars().first()
     

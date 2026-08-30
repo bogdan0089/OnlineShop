@@ -173,7 +173,7 @@ class TooManyRequests(BaseAppException):
     def __init__(self) -> None:
         super().__init__(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=f"Too many requests. Try again later."
+            detail="Too many requests. Try again later."
         )
 
 class OutOfStockError(BaseAppException):
@@ -201,6 +201,6 @@ class ReviewsNotFoundError(BaseAppException):
     def __init__(self):
         super().__init__(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Reviews not found."
+            detail="Reviews not found."
         )
 

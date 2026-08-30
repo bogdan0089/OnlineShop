@@ -1,5 +1,6 @@
 import pytest
 from pydantic import ValidationError
+
 from core.enum import OrderStatus
 from schemas.order.input_dto import OrderClientCreateDTO, OrderCreateInternalDTO, OrderStatusUpdateDTO
 from tests.conftest import _db_execute

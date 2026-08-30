@@ -1,17 +1,14 @@
 from typing import Annotated
+
 from fastapi import Depends, Request
 from fastapi.security import OAuth2PasswordBearer
-from core.exceptions import (
-ClientNotFoundError,
-InsufficientPermissionsError,
-TooManyRequests
-)
+
+from core.enum import Role
+from core.exceptions import ClientNotFoundError, InsufficientPermissionsError, TooManyRequests
+from core.redis import redis_client
 from database.unit_of_work import UnitOfWork
 from models.models import Client
 from services.auth_service import AuthService
-from core.enum import Role
-from core.redis import redis_client
-
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/client_login")
 

@@ -1,27 +1,28 @@
-from datetime import datetime, timedelta, timezone
+import uuid
+from datetime import UTC, datetime, timedelta
+
 import jwt
 from fastapi import Depends
 from fastapi.security import OAuth2PasswordRequestForm
+
+from celery_app import send_reset_password_email, send_verification_email
 from core.config import settings
 from core.exceptions import (
     ClientAlreadyError,
     ClientNotFoundError,
+    EmailNotVerifiedError,
     TokenExpiredError,
     TokenInvalidError,
     VerifyPasswordError,
-    EmailNotVerifiedError
 )
+from core.redis import redis_client
 from database.unit_of_work import UnitOfWork
 from models.models import Client
 from schemas.auth.input_dto import ChangePasswordDTO, ChangeRoleDTO, ForgotPasswordDTO, ResetPasswordDTO
 from schemas.auth.output_dto import TokenOutputDTO
 from schemas.client.input_dto import ClientCreateDTO
 from utils.hash import hash_password, verify_password
-import uuid
-from core.redis import redis_client
-from celery_app import send_verification_email, send_reset_password_email
 from utils.logger import get_logger
-
 
 logger = get_logger(__name__)
 
@@ -32,7 +33,7 @@ class AuthService:
     def create_access_token(user_id: int) -> str:
         payload = {
             "sub": str(user_id),
-            "exp": datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
+            "exp": datetime.now(UTC) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
         }
         return jwt.encode(payload, settings.SECRET_KEY, settings.ALGORITHM)
 
@@ -40,7 +41,7 @@ class AuthService:
     def create_refresh_token(client_id: int) -> str:
         payload = {
             "sub": str(client_id),
-            "exp": datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS),
+            "exp": datetime.now(UTC) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS),
         }
         return jwt.encode(payload, settings.SECRET_KEY, settings.ALGORITHM)
 
@@ -52,10 +53,10 @@ class AuthService:
             if user_id is None:
                 raise ClientNotFoundError()
             return int(user_id)
-        except jwt.ExpiredSignatureError:
-            raise TokenExpiredError()
-        except jwt.InvalidTokenError:
-            raise TokenInvalidError()
+        except jwt.ExpiredSignatureError as exc:
+            raise TokenExpiredError() from exc
+        except jwt.InvalidTokenError as exc:
+            raise TokenInvalidError() from exc
 
     @staticmethod
     def refresh_token(token: str) -> str:
@@ -131,7 +132,7 @@ class AuthService:
 
     @staticmethod
     async def verify_email(token: str) -> dict:
-        raw = await redis_client.get((f"verify:{token}"))
+        raw = await redis_client.get(f"verify:{token}")
         if not raw:
             raise TokenInvalidError()
         client_id = int(raw)

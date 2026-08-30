@@ -1,9 +1,9 @@
 from fastapi import APIRouter
-from services.category_service import CategoryService
+
 from schemas.category.input_dto import CategoryCreateDTO
 from schemas.category.output_dto import CategoryOutputDTO
+from services.category_service import CategoryService
 from utils.dependencies import CurrentAdmin
-
 
 router_category = APIRouter(prefix="/category", tags=["Categories"])
 
