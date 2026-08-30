@@ -1,6 +1,7 @@
 from pydantic import TypeAdapter
+from sqlalchemy.exc import IntegrityError
 
-from core.exceptions import CategoryNotFoundError
+from core.exceptions import CategoryAlreadyExistsError, CategoryNotFoundError
 from core.redis import redis_client
 from database.unit_of_work import UnitOfWork
 from models.models import Category
@@ -16,8 +17,11 @@ class CategoryService:
 
     @staticmethod
     async def create_category(data: CategoryCreateDTO) -> Category:
-        async with UnitOfWork() as uow:
-            category = await uow.category.create_category(data)
+        try:
+            async with UnitOfWork() as uow:
+                category = await uow.category.create_category(data)
+        except IntegrityError as exc:
+            raise CategoryAlreadyExistsError(data.name) from exc
         async for key in redis_client.scan_iter("category*"):
             await redis_client.unlink(key)
         logger.info("category_created", extra={"extra_fields": {"category_id": category.id, "name": data.name}})

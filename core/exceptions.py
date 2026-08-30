@@ -204,3 +204,11 @@ class ReviewsNotFoundError(BaseAppException):
             detail="Reviews not found."
         )
 
+
+
+class CategoryAlreadyExistsError(BaseAppException):
+    def __init__(self, name: str):
+        super().__init__(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Category '{name}' already exists."
+        )
