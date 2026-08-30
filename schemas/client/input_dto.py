@@ -1,4 +1,6 @@
 
+from decimal import Decimal
+
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
 
@@ -28,4 +30,4 @@ class ClientUpdateDTO(BaseModel):
 
 
 class ClientBalanceOperationDTO(BaseModel):
-    amount: float = Field(..., gt=0)
+    amount: Decimal = Field(..., gt=0, max_digits=10, decimal_places=2)

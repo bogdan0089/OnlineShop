@@ -1,4 +1,5 @@
 import json
+from decimal import Decimal
 from typing import Any
 
 from pydantic import TypeAdapter
@@ -118,17 +119,19 @@ class ClientService:
                 for order in client.orders
                 if order.status == OrderStatus.completed
             )
+            # Money is Decimal in the database, but this dict is cached as JSON
+            # and returned as is, so it has to carry plain numbers.
             stats = {
                 "client_id": client.id,
                 "total_orders": total_orders,
-                "total_spent": total_spent,
-                "balance": client.balance,
+                "total_spent": float(total_spent),
+                "balance": float(client.balance),
             }
         await redis_client.set(f"client:stats:{current_client.id}", json.dumps(stats), ex=60)
         return stats
 
     @staticmethod
-    async def client_deposit(client_id: int, amount: float, current_client: Client) -> Client:
+    async def client_deposit(client_id: int, amount: Decimal, current_client: Client) -> Client:
         async with UnitOfWork() as uow:
             client = await uow.client.get_client_with_lock(client_id)
             if not client:
@@ -151,7 +154,7 @@ class ClientService:
         return result
 
     @staticmethod
-    async def client_withdraw(client_id: int, amount: float, current_client: Client) -> Client:
+    async def client_withdraw(client_id: int, amount: Decimal, current_client: Client) -> Client:
         async with UnitOfWork() as uow:
             client = await uow.client.get_client_with_lock(client_id)
             if not client:
