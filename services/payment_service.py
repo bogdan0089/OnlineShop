@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from core.enum import TransactionType
 from database.unit_of_work import UnitOfWork
 from schemas.transaction.input_dto import TransactionCreateDTO
@@ -9,7 +11,7 @@ logger = get_logger(__name__)
 class PaymentService:
 
     @staticmethod
-    async def handle_payment_success(client_id: int, amount: float):
+    async def handle_payment_success(client_id: int, amount: Decimal):
         async with UnitOfWork() as uow:
             client = await uow.client.get_client(client_id)
             if client:

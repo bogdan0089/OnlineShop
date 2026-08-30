@@ -1,6 +1,7 @@
 from datetime import datetime
+from decimal import Decimal
 
-from sqlalchemy import Column, ForeignKey, String, Table
+from sqlalchemy import Column, ForeignKey, Numeric, String, Table
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -12,7 +13,7 @@ class Transaction(Base):
     __tablename__ = "transaction"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    amount: Mapped[float] = mapped_column(nullable=False)
+    amount: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     type: Mapped[TransactionType] = mapped_column(
         SAEnum(TransactionType, values_callable=lambda x: [e.value for e in x])
     )
@@ -29,7 +30,7 @@ class Client(Base):
     age: Mapped[int]
     email: Mapped[str] = mapped_column(nullable=False, unique=True)
     hashed_password: Mapped[str] = mapped_column(nullable=False)
-    balance: Mapped[float] = mapped_column(default=0.0)
+    balance: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=Decimal("0.00"))
     orders: Mapped[list["Order"]] = relationship(back_populates="client")
     transactions: Mapped[list["Transaction"]] = relationship(back_populates="client")
     is_verified: Mapped[bool] = mapped_column(default=False)
@@ -65,7 +66,7 @@ class Product(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str]
-    price: Mapped[float] = mapped_column(default=0.0)
+    price: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=Decimal("0.00"))
     color: Mapped[str]
     status: Mapped[ProductStatus] = mapped_column(
         SAEnum(ProductStatus, values_callable=lambda x: [e.value for e in x]),

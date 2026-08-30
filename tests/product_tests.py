@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 import pytest
 from pydantic import ValidationError
 
@@ -78,9 +80,9 @@ def test_filter_products_by_price(client, auth_headers):
 
 
 def test_product_create_valid():
-    product = ProductCreateDTO(name="Nike Air", price=99.99, color="black")
+    product = ProductCreateDTO(name="Nike Air", price="99.99", color="black")
     assert product.name == "Nike Air"
-    assert product.price == 99.99
+    assert product.price == Decimal("99.99")
     assert product.color == "black"
 
 
@@ -102,8 +104,8 @@ def test_product_update_all_optional():
 
 
 def test_product_update_only_price():
-    update = ProductUpdateDTO(price=49.99)
-    assert update.price == 49.99
+    update = ProductUpdateDTO(price="49.99")
+    assert update.price == Decimal("49.99")
     assert update.name is None
 
 

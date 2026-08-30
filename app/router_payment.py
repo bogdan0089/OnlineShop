@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 import stripe
 from fastapi import APIRouter, Request
 
@@ -31,7 +33,7 @@ async def stripe_webhook(request: Request):
     if event["type"] == "payment_intent.succeeded":
         intent = event["data"]["object"]
         client_id = int(intent["metadata"]["client_id"])
-        amount = intent["amount"] / 100
+        amount = Decimal(intent["amount"]) / 100
         await PaymentService.handle_payment_success(client_id, amount)
     return {
         "status": "ok"
