@@ -1,21 +1,21 @@
 import uuid
-import pytest
+
 import psycopg2
+import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
+
+import database.database as db_module
 import database.unit_of_work as uow_module
-import services.client_service as client_svc
-import services.product_service as product_svc
-import services.order_service as order_svc
 import services.auth_service as auth_svc
 import services.category_service as category_svc
+import services.client_service as client_svc
+import services.order_service as order_svc
+import services.product_service as product_svc
 import services.review_service as review_svc
-import database.database as db_module
-from core.config import settings
 from app.main import app
-
-
+from core.config import settings
 
 TEST_DB_URL = (
     f"postgresql+asyncpg://{settings.DB_USER}:{settings.DB_PASSWORD}"
@@ -25,6 +25,16 @@ TEST_DB_SYNC_URL = (
     f"postgresql://{settings.DB_USER}:{settings.DB_PASSWORD}"
     f"@{settings.DB_HOST}:{settings.DB_PORT}/{settings.DB_NAME}"
 )
+
+
+class RecordingTask:
+    """Stands in for a Celery task: records the call instead of reaching a broker."""
+
+    def __init__(self) -> None:
+        self.calls: list[tuple] = []
+
+    def delay(self, *args, **kwargs) -> None:
+        self.calls.append((args, kwargs))
 
 
 class FakeRedis:
@@ -58,6 +68,13 @@ def setup_test_db():
 
     import utils.dependencies as deps_module
     deps_module.redis_client = fake
+
+    # Without this every checkout would open a real AMQP connection: the suite
+    # hangs on retries when no broker is running, and sends real email when one is.
+    order_svc.send_order_status_email = RecordingTask()
+    order_svc.send_new_order_notification = RecordingTask()
+    auth_svc.send_verification_email = RecordingTask()
+    auth_svc.send_reset_password_email = RecordingTask()
 
     yield
     uow_module.async_session_maker = orig
