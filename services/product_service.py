@@ -36,7 +36,7 @@ class ProductService:
     @staticmethod
     async def get_products(limit, offset) -> list[ProductOutputDTO]:
         async with UnitOfWork() as uow:
-            cached_key = f"products:limit={limit}:offset={offset}"
+            cached_key = await cache.key("product", f"list:limit={limit}:offset={offset}")
             cached = await redis_client.get(cached_key)
             if cached:
                 return _product_list_adapter.validate_json(cached)
@@ -53,7 +53,7 @@ class ProductService:
     @staticmethod
     async def get_products_any_status(limit: int, offset: int) -> list[ProductOutputDTO]:
         async with UnitOfWork() as uow:
-            cached_key = f"products_admin:limit={limit}:offset={offset}"
+            cached_key = await cache.key("product", f"admin:limit={limit}:offset={offset}")
             cached = await redis_client.get(cached_key)
             if cached:
                 return _product_list_adapter.validate_json(cached)

@@ -15,10 +15,6 @@ class OrderNotFoundError(BaseAppException):
             detail = "Order not found."
         super().__init__(status_code=status.HTTP_404_NOT_FOUND, detail=detail)
 
-class OrdersNotFound(BaseAppException):
-    def __init__(self) -> None:
-        super().__init__(status_code=status.HTTP_404_NOT_FOUND, detail="No orders found.")
-
 class ClientNotFoundError(BaseAppException):
     def __init__(self, client_id: int | None = None, email: str | None = None) -> None:
         if client_id is not None:
