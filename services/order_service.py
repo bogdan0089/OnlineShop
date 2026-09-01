@@ -71,7 +71,7 @@ class OrderService:
 
     @staticmethod
     async def get_orders(limit, offset) -> list[OrderOutputDTO]:
-        cached_key = f"orders:limit={limit}:offset={offset}"
+        cached_key = await cache.key("order", f"list:limit={limit}:offset={offset}")
         cached = await redis_client.get(cached_key)
         if cached:
             return _orders_list_adapter.validate_json(cached)
@@ -180,8 +180,13 @@ class OrderService:
             if status not in allowed_transitions[order.status]:
                 raise InvalidOrderTransitionError(order.status, status)
             client = await uow.client.get_client(order.client_id)
-            send_order_status_email.delay(client.email, order_id, status.value)
+            if not client:
+                raise ClientNotFoundError(order.client_id)
+            recipient = client.email
             updated = await uow.order.update_order_status(order, status)
+        # Sent only after the transaction committed. Queued inside it, a later
+        # rollback would still have mailed a status change that never happened.
+        send_order_status_email.delay(recipient, order_id, status.value)
         await cache.invalidate("order")
         logger.info("order_status_updated", extra={"extra_fields": {"order_id": order_id, "status": status.value}})
         return updated
@@ -355,8 +360,5 @@ class OrderService:
     @staticmethod
     async def get_my_orders(current_client: Client, limit, offset) -> list[Order]:
         async with UnitOfWork() as uow:
-            orders = await uow.order.get_by_client_id(current_client.id, limit, offset)
-            if not orders:
-                return []
-            return orders
+            return await uow.order.get_by_client_id(current_client.id, limit, offset)
 

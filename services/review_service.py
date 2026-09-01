@@ -49,7 +49,7 @@ class ReviewService:
 
     @staticmethod
     async def get_reviews(limit: int, offset: int) -> list[ReviewResponse]:
-        cached_key = f"reviews:limit:{limit}:offset:{offset}"
+        cached_key = await cache.key("review", f"list:limit={limit}:offset={offset}")
         cached = await redis_client.get(cached_key)
         if cached:
             return _review_list_adapter.validate_json(cached)
@@ -66,7 +66,7 @@ class ReviewService:
 
     @staticmethod
     async def get_reviews_by_product_id(product_id: int) -> list[ReviewResponse]:
-        cached_key = f"reviews:product:{product_id}"
+        cached_key = await cache.key("review", f"product:{product_id}")
         cached = await redis_client.get(cached_key)
         if cached:
             return _review_list_adapter.validate_json(cached)

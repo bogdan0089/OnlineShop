@@ -29,7 +29,7 @@ class ClientService:
 
     @staticmethod
     async def get_all_client(limit, offset) -> list[ClientOutputDTO]:
-        cached_key = f"clients:limit={limit}:offset={offset}"
+        cached_key = await cache.key("client", f"list:limit={limit}:offset={offset}")
         cached = await redis_client.get(cached_key)
         if cached:
             return _client_list_adapter.validate_json(cached)
@@ -105,7 +105,8 @@ class ClientService:
 
     @staticmethod
     async def get_client_stats(current_client: Client) -> dict[str, Any]:
-        cached = await redis_client.get(f"client:stats:{current_client.id}")
+        stats_key = await cache.key("client", f"stats:{current_client.id}")
+        cached = await redis_client.get(stats_key)
         if cached:
             return json.loads(cached)
         async with UnitOfWork() as uow:
@@ -126,7 +127,7 @@ class ClientService:
                 "total_spent": float(total_spent),
                 "balance": float(client.balance),
             }
-        await redis_client.set(f"client:stats:{current_client.id}", json.dumps(stats), ex=60)
+        await redis_client.set(stats_key, json.dumps(stats), ex=60)
         return stats
 
     @staticmethod

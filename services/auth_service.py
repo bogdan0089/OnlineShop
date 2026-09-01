@@ -64,7 +64,7 @@ class AuthService:
         return AuthService.create_access_token(client_id)
 
     @staticmethod
-    async def register_client(data: ClientCreateDTO) -> Client:
+    async def register_client(data: ClientCreateDTO) -> dict[str, str]:
         async with UnitOfWork() as uow:
             client = await uow.client.get_client_email(data.email)
             if client:
@@ -75,7 +75,9 @@ class AuthService:
                 hashed
             )
             token = str(uuid.uuid4())
-            await redis_client.set(f"verify:{token}", client.id, ex=86400)
+        # Stored after the commit: a token written inside the transaction would
+        # point at a client that a rollback then threw away.
+        await redis_client.set(f"verify:{token}", client.id, ex=86400)
         send_verification_email.delay(client.email, token)
         logger.info("client_registered", extra={"extra_fields": {"client_id": client.id, "email": data.email}})
         return {

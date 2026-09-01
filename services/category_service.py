@@ -29,7 +29,7 @@ class CategoryService:
 
     @staticmethod
     async def get_all_category(limit, offset) -> list[CategoryOutputDTO]:
-        cached_key = f"categories:limit={limit}:offset={offset}"
+        cached_key = await cache.key("category", f"list:limit={limit}:offset={offset}")
         cached = await redis_client.get(cached_key)
         if cached:
             return _category_list_adapter.validate_json(cached)
