@@ -1,13 +1,16 @@
+import asyncio
 import uuid
 
 import psycopg2
 import pytest
 from fastapi.testclient import TestClient
+from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
 import database.database as db_module
 import database.unit_of_work as uow_module
+import models.models  # noqa: F401  - registers every table on Base.metadata
 import services.auth_service as auth_svc
 import services.category_service as category_svc
 import services.client_service as client_svc
@@ -16,15 +19,32 @@ import services.product_service as product_svc
 import services.review_service as review_svc
 from app.main import app
 from core.config import settings
+from database.database import Base
 
-TEST_DB_URL = (
-    f"postgresql+asyncpg://{settings.DB_USER}:{settings.DB_PASSWORD}"
-    f"@{settings.DB_HOST}:{settings.DB_PORT}/{settings.DB_NAME}"
-)
-TEST_DB_SYNC_URL = (
-    f"postgresql://{settings.DB_USER}:{settings.DB_PASSWORD}"
-    f"@{settings.DB_HOST}:{settings.DB_PORT}/{settings.DB_NAME}"
-)
+# A database of its own, never the one the app develops against: the suite used
+# to write into that one and keep every row, until asserts started depending on
+# what earlier runs had left behind.
+TEST_DB_NAME = f"{settings.DB_NAME}_test"
+
+_CREDENTIALS = f"{settings.DB_USER}:{settings.DB_PASSWORD}@{settings.DB_HOST}:{settings.DB_PORT}"
+TEST_DB_URL = f"postgresql+asyncpg://{_CREDENTIALS}/{TEST_DB_NAME}"
+TEST_DB_SYNC_URL = f"postgresql://{_CREDENTIALS}/{TEST_DB_NAME}"
+ADMIN_DB_URL = f"postgresql://{_CREDENTIALS}/postgres"
+
+
+def _recreate_test_database() -> None:
+    """Drop and create the test database, so every run starts empty."""
+    conn = psycopg2.connect(ADMIN_DB_URL)
+    conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+    with conn.cursor() as cur:
+        cur.execute(f'DROP DATABASE IF EXISTS "{TEST_DB_NAME}" WITH (FORCE)')
+        cur.execute(f'CREATE DATABASE "{TEST_DB_NAME}"')
+    conn.close()
+
+
+async def _create_schema(engine) -> None:
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
 
 
 class RecordingTask:
@@ -40,18 +60,18 @@ class RecordingTask:
 class FakeRedis:
     async def get(self, key): return None
     async def set(self, key, value, ex=None): pass
-    async def keys(self, pattern): return []
     async def delete(self, *keys): pass
     async def incr(self, key): return 1
     async def expire(self, key, seconds): pass
-    async def scan_iter(self, pattern):
-        return
-        yield
 
 
 @pytest.fixture(scope="session", autouse=True)
 def setup_test_db():
+    _recreate_test_database()
     engine = create_async_engine(TEST_DB_URL, poolclass=NullPool)
+    # The schema comes from the models, not from alembic: CI already runs
+    # `upgrade head`, `alembic check` and a full downgrade round trip.
+    asyncio.run(_create_schema(engine))
     session_maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
     orig = uow_module.async_session_maker
     orig_db = db_module.async_session_maker

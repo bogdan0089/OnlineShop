@@ -50,15 +50,26 @@ def test_create_category_no_auth(client):
     assert response.status_code == 401
 
 
+def find_category(client, name) -> bool:
+    """Page through the whole list: the endpoint returns 15 at a time, and the
+    database keeps every category earlier runs created."""
+    offset = 0
+    while True:
+        page = client.get(f"/category/all?limit=100&offset={offset}")
+        assert page.status_code == 200
+        rows = page.json()
+        if not rows:
+            return False
+        if any(c["name"] == name for c in rows):
+            return True
+        offset += 100
+
+
 def test_get_all_categories(client, admin_headers):
     name = unique_name("Electronics")
     client.post("/category/create", json={"name": name}, headers=admin_headers)
 
-    response = client.get("/category/all")
-
-    assert response.status_code == 200
-    assert isinstance(response.json(), list)
-    assert any(c["name"] == name for c in response.json())
+    assert find_category(client, name) is True
 
 
 def test_delete_category(client, admin_headers):
