@@ -18,6 +18,8 @@ class Settings(BaseSettings):
 
     REDIS_URL: str = "redis://redis:6379"
     RABBITMQ_URL: str = ""
+    RABBITMQ_USER: str = ""
+    RABBITMQ_PASSWORD: str = ""
 
     EMAIL_USER: str = ""
     EMAIL_PASSWORD: str = ""
