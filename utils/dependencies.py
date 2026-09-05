@@ -12,7 +12,6 @@ from services.auth_service import AuthService
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/client_login")
 
-
 async def get_current_client(token: str = Depends(oauth2_scheme)) -> Client:
     client_id = AuthService.decode_token(token)
     async with UnitOfWork() as uow:
@@ -22,7 +21,6 @@ async def get_current_client(token: str = Depends(oauth2_scheme)) -> Client:
         return client
 
 CurrentClient = Annotated[Client, Depends(get_current_client)]
-
 
 async def get_current_admin(client: Client = Depends(get_current_client)) -> Client:
     if client.role == Role.superadmin:
@@ -35,7 +33,6 @@ async def get_current_admin(client: Client = Depends(get_current_client)) -> Cli
 
 CurrentAdmin = Annotated[Client, Depends(get_current_admin)]
 
-
 async def get_current_moderator(client: Client = Depends(get_current_client)) -> Client:
     if client.role in (Role.superadmin, Role.moderator):
         return client
@@ -47,10 +44,8 @@ async def get_current_moderator(client: Client = Depends(get_current_client)) ->
     
 CurrentModerator = Annotated[Client, Depends(get_current_moderator)]
 
-
 RATE_LIMIT_REQUESTS = 5
 RATE_LIMIT_WINDOW_SECONDS = 60
-
 
 def client_ip(request: Request) -> str:
     """The caller's address, or the proxy's if it did not forward one.
@@ -63,13 +58,10 @@ def client_ip(request: Request) -> str:
         return forwarded.split(",")[0].strip()
     return request.client.host if request.client else "unknown"
 
-
 async def rate_limit(request: Request):
     key = f"rate_limit:{client_ip(request)}"
     used = await redis_client.incr(key)
     if used == 1:
-        # Only the first request of a window sets the expiry. Refreshing it on
-        # every call kept the counter alive forever for an active caller.
         await redis_client.expire(key, RATE_LIMIT_WINDOW_SECONDS)
     if used > RATE_LIMIT_REQUESTS:
         raise TooManyRequests()

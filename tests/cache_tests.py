@@ -18,16 +18,13 @@ class VersionRedis:
         return None if value is None else str(value).encode()
 
     async def incr(self, key):
-        # Redis turns a missing key into 1, not 2.
         self.store[key] = self.store.get(key, 0) + 1
         return self.store[key]
-
 
 def test_key_is_stable_until_invalidated(monkeypatch):
     monkeypatch.setattr(cache, "redis_client", VersionRedis())
     first = asyncio.run(cache.key("order", "list:limit=10"))
     assert first == asyncio.run(cache.key("order", "list:limit=10"))
-
 
 def test_invalidate_changes_the_key(monkeypatch):
     monkeypatch.setattr(cache, "redis_client", VersionRedis())
@@ -35,14 +32,12 @@ def test_invalidate_changes_the_key(monkeypatch):
     asyncio.run(cache.invalidate("order"))
     assert asyncio.run(cache.key("order", "list:limit=10")) != before
 
-
 def test_second_invalidate_changes_the_key_again(monkeypatch):
     monkeypatch.setattr(cache, "redis_client", VersionRedis())
     asyncio.run(cache.invalidate("order"))
     after_first = asyncio.run(cache.key("order", "list:limit=10"))
     asyncio.run(cache.invalidate("order"))
     assert asyncio.run(cache.key("order", "list:limit=10")) != after_first
-
 
 def test_invalidate_leaves_other_resources_alone(monkeypatch):
     monkeypatch.setattr(cache, "redis_client", VersionRedis())

@@ -18,7 +18,6 @@ logger = get_logger(__name__)
 
 _review_list_adapter = TypeAdapter(list[ReviewResponse])
 
-
 class ReviewService:
 
     @staticmethod
@@ -31,8 +30,6 @@ class ReviewService:
                 review = await uow.review.create_review(data, client_id)
                 validated = ReviewResponse.model_validate(review)
         except IntegrityError:
-            # uq_review_per_client_product: two requests can both pass a check
-            # in Python, only the database can decide which one wins.
             raise ReviewAlreadyExistsError(data.product_id) from None
         await cache.invalidate("review")
         logger.info("review_created", extra={"extra_fields": {"review_id": validated.id, "client_id": client_id}})

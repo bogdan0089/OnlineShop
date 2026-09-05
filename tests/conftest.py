@@ -21,16 +21,12 @@ from app.main import app
 from core.config import settings
 from database.database import Base
 
-# A database of its own, never the one the app develops against: the suite used
-# to write into that one and keep every row, until asserts started depending on
-# what earlier runs had left behind.
 TEST_DB_NAME = f"{settings.DB_NAME}_test"
 
 _CREDENTIALS = f"{settings.DB_USER}:{settings.DB_PASSWORD}@{settings.DB_HOST}:{settings.DB_PORT}"
 TEST_DB_URL = f"postgresql+asyncpg://{_CREDENTIALS}/{TEST_DB_NAME}"
 TEST_DB_SYNC_URL = f"postgresql://{_CREDENTIALS}/{TEST_DB_NAME}"
 ADMIN_DB_URL = f"postgresql://{_CREDENTIALS}/postgres"
-
 
 def _recreate_test_database() -> None:
     """Drop and create the test database, so every run starts empty."""
@@ -41,11 +37,9 @@ def _recreate_test_database() -> None:
         cur.execute(f'CREATE DATABASE "{TEST_DB_NAME}"')
     conn.close()
 
-
 async def _create_schema(engine) -> None:
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-
 
 class RecordingTask:
     """Stands in for a Celery task: records the call instead of reaching a broker."""
@@ -56,7 +50,6 @@ class RecordingTask:
     def delay(self, *args, **kwargs) -> None:
         self.calls.append((args, kwargs))
 
-
 class FakeRedis:
     async def get(self, key): return None
     async def set(self, key, value, ex=None): pass
@@ -64,13 +57,10 @@ class FakeRedis:
     async def incr(self, key): return 1
     async def expire(self, key, seconds): pass
 
-
 @pytest.fixture(scope="session", autouse=True)
 def setup_test_db():
     _recreate_test_database()
     engine = create_async_engine(TEST_DB_URL, poolclass=NullPool)
-    # The schema comes from the models, not from alembic: CI already runs
-    # `upgrade head`, `alembic check` and a full downgrade round trip.
     asyncio.run(_create_schema(engine))
     session_maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
     orig = uow_module.async_session_maker
@@ -91,8 +81,6 @@ def setup_test_db():
     deps_module.redis_client = fake
     cache_module.redis_client = fake
 
-    # Without this every checkout would open a real AMQP connection: the suite
-    # hangs on retries when no broker is running, and sends real email when one is.
     order_svc.send_order_status_email = RecordingTask()
     order_svc.send_new_order_notification = RecordingTask()
     auth_svc.send_verification_email = RecordingTask()
@@ -102,18 +90,15 @@ def setup_test_db():
     uow_module.async_session_maker = orig
     db_module.async_session_maker = orig_db
 
-
 @pytest.fixture
 def client():
     return TestClient(app)
-
 
 def _db_execute(sql, params):
     conn = psycopg2.connect(TEST_DB_SYNC_URL)
     conn.cursor().execute(sql, params)
     conn.commit()
     conn.close()
-
 
 @pytest.fixture
 def new_client(client):
@@ -126,7 +111,6 @@ def new_client(client):
     client.post("/auth/register", json=payload)
     _db_execute("UPDATE clients SET is_verified=true WHERE email=%s", (payload["email"],))
     return payload
-
 
 @pytest.fixture
 def auth_headers(client, new_client):

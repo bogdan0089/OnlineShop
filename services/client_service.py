@@ -119,8 +119,6 @@ class ClientService:
                 for order in client.orders
                 if order.status == OrderStatus.completed
             )
-            # Money is Decimal in the database, but this dict is cached as JSON
-            # and returned as is, so it has to carry plain numbers.
             stats = {
                 "client_id": client.id,
                 "total_orders": total_orders,
@@ -177,4 +175,3 @@ class ClientService:
             result = await uow.client.withdraw_client(client, amount)
         logger.info("client_withdraw", extra={"extra_fields": {"client_id": client_id, "amount": amount}})
         return result
-
