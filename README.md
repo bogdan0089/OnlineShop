@@ -1,7 +1,6 @@
 # FastAPI E-Commerce Backend
 
 ![CI](https://github.com/bogdan0089/fastapi-ecommerce-backend/actions/workflows/ci.yml/badge.svg)
-![CD](https://github.com/bogdan0089/fastapi-ecommerce-backend/actions/workflows/cd.yml/badge.svg)
 ![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-async-009688?logo=fastapi&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-316192?logo=postgresql&logoColor=white)
@@ -46,7 +45,7 @@ fastapi-ecommerce-backend/
 ├── repositories/     # Raw SQLAlchemy queries only
 ├── models/           # ORM models: Client, Order, Product, Transaction, Category, OrderProduct
 ├── schemas/          # Pydantic v2 — request validation and response serialization
-├── core/             # Config, 30+ custom exceptions, enums (Role, OrderStatus, etc.)
+├── core/             # Config, 30+ custom exceptions, enums (Role, OrderStatus, etc.), shared field validators
 ├── database/         # Async session, Unit of Work pattern
 ├── utils/            # JWT dependencies, WebSocket connection manager, structured logger
 ├── alembic/          # Database migrations
@@ -90,7 +89,7 @@ Router → Service → UnitOfWork → Repository → DB
 - **Rate Limiting** — Redis-based per-IP counter on login and forgot-password endpoints; max 5 requests / 60s, returns HTTP 429
 - **AI Integration** — Groq API (LLaMA 3.3-70b-versatile) powers 4 features: personalized recommendations based on purchase history, semantic AI search, store assistant chatbot, and AI-generated product descriptions for admins
 - **Structured Logging** — `utils/logger.py` with `get_logger` utility outputs timestamped logs to stdout; all services log key business events at `INFO` level, not-found cases at `WARNING`; plain reads are intentionally skipped to keep logs clean
-- **CI/CD** — GitHub Actions runs 65 integration tests on every push and PR; on merge to `main` automatically deploys to AWS EC2 via SSH
+- **CI/CD** — GitHub Actions runs ruff, migration checks and 104 integration tests on every push and PR; on merge to `main` automatically deploys to AWS EC2 via SSH
 
 ---
 
@@ -100,13 +99,15 @@ Router → Service → UnitOfWork → Repository → DB
 git push / pull request
         ↓
 GitHub Actions — CI
-  • spins up PostgreSQL 15 + Redis 7
-  • runs alembic migrations
-  • runs pytest (65 tests)
+  • spins up PostgreSQL 15 + Redis 7 + RabbitMQ 3
+  • runs ruff
+  • runs alembic migrations, then alembic check
+  • downgrades to base and upgrades again
+  • runs pytest (104 tests)
         ↓
 merge to main
         ↓
-GitHub Actions — CD
+deploy job in the same workflow, gated on lint + test
   • connects to AWS EC2 via SSH
   • git pull origin main
   • docker compose up --build -d
@@ -124,6 +125,23 @@ GitHub Actions — CD
 | `OrderProduct` | M2M — order ↔ products with quantity |
 | `Transaction` | Financial record (deposit / withdraw / purchase / refund) |
 | `Category` | Product category |
+
+---
+
+## Balance and the demo top-up
+
+Real money goes through Stripe: the client creates a PaymentIntent, Stripe
+confirms it, and the webhook credits the balance.
+
+`POST /client/{id}/deposit` credits a balance without any payment. A client may
+call it for their own account, and only for their own — anyone else's requires
+superadmin. This is deliberate: the project is a portfolio build with no real
+checkout, and reviewers need a way to try the cart, checkout and refund flow
+without entering card details. The frontend exposes it as "Demo top-up" next to
+the Stripe form, labelled as such.
+
+If this ever becomes a real store, restrict both `/deposit` and `/withdraw` to
+superadmin and leave Stripe as the only way in.
 
 ---
 
@@ -155,6 +173,7 @@ GitHub Actions — CD
 | POST | /auth/change_password | 🔒 | Change password |
 | POST | /auth/change_role/{client_id} | 🔑 | Change client role |
 | GET | /auth/verify/{token} | 🔓 | Verify email |
+| POST | /auth/resend_verification | 🔓 | Send the verification link again |
 | POST | /auth/forgot_password | 🔓 | Send password reset email |
 | POST | /auth/reset_password | 🔓 | Reset password via token |
 
@@ -168,8 +187,8 @@ GitHub Actions — CD
 | GET | /client/{id} | 🔒 | Get client by ID |
 | PUT | /client/{id} | 🔒 | Update name / age / address |
 | DELETE | /client/{id} | 🔒 | Soft delete account |
-| POST | /client/{id}/deposit | 🔒 | Deposit balance |
-| POST | /client/{id}/withdraw | 🔒 | Withdraw balance |
+| POST | /client/{id}/deposit | 🔒 | Credit own balance — demo top-up, see note below |
+| POST | /client/{id}/withdraw | 🔒 | Debit own balance |
 | GET | /client/{id}/orders/count | 🔒 | Count client orders |
 
 **Product**
