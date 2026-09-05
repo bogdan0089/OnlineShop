@@ -4,6 +4,7 @@ from datetime import UTC, datetime, timedelta
 import jwt
 from fastapi import Depends
 from fastapi.security import OAuth2PasswordRequestForm
+from kombu.exceptions import OperationalError
 
 from celery_app import send_reset_password_email, send_verification_email
 from core.config import settings
@@ -11,6 +12,7 @@ from core.exceptions import (
     ClientAlreadyError,
     ClientNotFoundError,
     EmailNotVerifiedError,
+    EmailQueueError,
     TokenExpiredError,
     TokenInvalidError,
     VerifyPasswordError,
@@ -25,7 +27,6 @@ from utils.hash import hash_password, verify_password
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
-
 
 class AuthService:
 
@@ -64,6 +65,20 @@ class AuthService:
         return AuthService.create_access_token(client_id)
 
     @staticmethod
+    async def _queue_verification_email(client_id: int, email: str) -> bool:
+        token = str(uuid.uuid4())
+        await redis_client.set(f"verify:{token}", client_id, ex=86400)
+        try:
+            send_verification_email.delay(email, token)
+        except OperationalError:
+            logger.error(
+                "verification_email_not_queued",
+                extra={"extra_fields": {"client_id": client_id, "email": email}},
+            )
+            return False
+        return True
+
+    @staticmethod
     async def register_client(data: ClientCreateDTO) -> dict[str, str]:
         async with UnitOfWork() as uow:
             client = await uow.client.get_client_email(data.email)
@@ -74,15 +89,28 @@ class AuthService:
                 data,
                 hashed
             )
-            token = str(uuid.uuid4())
-        # Stored after the commit: a token written inside the transaction would
-        # point at a client that a rollback then threw away.
-        await redis_client.set(f"verify:{token}", client.id, ex=86400)
-        send_verification_email.delay(client.email, token)
+        queued = await AuthService._queue_verification_email(client.id, client.email)
         logger.info("client_registered", extra={"extra_fields": {"client_id": client.id, "email": data.email}})
+        if queued:
+            return {"message": "Registration successful. Check your email to verify account."}
         return {
-            "message": "Registration successful. Check your email to verify account."
+            "message": "Registration successful, but the verification email could not be sent. "
+                       "Use resend verification to try again."
         }
+
+    @staticmethod
+    async def resend_verification(data: ForgotPasswordDTO) -> dict[str, str]:
+        async with UnitOfWork() as uow:
+            client = await uow.client.get_client_email(data.email)
+            if not client:
+                raise ClientNotFoundError(email=data.email)
+            if client.is_verified:
+                return {"message": "This email is already verified. You can log in."}
+            client_id, email = client.id, client.email
+        queued = await AuthService._queue_verification_email(client_id, email)
+        if queued:
+            return {"message": "Verification email sent. Check your inbox."}
+        raise EmailQueueError()
 
     @staticmethod
     async def client_login(data: OAuth2PasswordRequestForm = Depends()) -> TokenOutputDTO:
@@ -92,7 +120,8 @@ class AuthService:
                 logger.warning("login_failed_not_found", extra={"extra_fields": {"email": data.username}})
                 raise ClientNotFoundError(email=data.username)
             if not client.is_verified:
-                raise EmailNotVerifiedError(client.id)
+                logger.warning("login_blocked_not_verified", extra={"extra_fields": {"client_id": client.id}})
+                raise EmailNotVerifiedError()
             if not verify_password(data.password, client.hashed_password):
                 logger.warning("login_failed_wrong_password", extra={"extra_fields": {"client_id": client.id}})
                 raise VerifyPasswordError()
@@ -106,7 +135,7 @@ class AuthService:
                 client_id=client.id,
                 email=client.email,
                 age=client.age,
-                name=client.name,
+                name=client.name
             )
 
     @staticmethod
