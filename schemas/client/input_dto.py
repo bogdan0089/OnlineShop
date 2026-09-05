@@ -3,19 +3,14 @@ from decimal import Decimal
 
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
+from core.validators import Password
+
 
 class ClientCreateDTO(BaseModel):
     name: str = Field(..., min_length=1)
     email: EmailStr
-    password: str
+    password: Password
     age: int = Field(..., gt=0)
-
-    @field_validator("password")
-    @classmethod
-    def validate_password(cls, p: str) -> str:
-        if len(p) < 8:
-            raise ValueError("Password must be at least 8 characters")
-        return p
 
     @field_validator("email")
     @classmethod
