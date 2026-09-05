@@ -137,3 +137,31 @@ def test_change_password_wrong_old(client, auth_headers):
         "new_password": "mikle123"
     })
     assert response.status_code == 401
+
+
+def test_change_password_rejects_short_new(client, auth_headers, new_client):
+    """The minimum applies when changing a password, not only when registering."""
+    response = client.post("/auth/change_password", headers=auth_headers, json={
+        "old_password": new_client["password"],
+        "new_password": "short1"
+    })
+    assert response.status_code == 422
+
+
+def test_reset_password_rejects_short_new(client):
+    """Same minimum on the reset path, before the token is even looked at."""
+    response = client.post("/auth/reset_password", json={
+        "reset_token": "irrelevant",
+        "new_password": "short1"
+    })
+    assert response.status_code == 422
+
+
+def test_register_rejects_short_password(client):
+    response = client.post("/auth/register", json={
+        "name": "Short Pass",
+        "email": "short.pass@example.com",
+        "password": "short1",
+        "age": 25
+    })
+    assert response.status_code == 422
