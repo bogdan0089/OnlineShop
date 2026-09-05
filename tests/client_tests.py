@@ -157,6 +157,32 @@ def test_reset_password_rejects_short_new(client):
     assert response.status_code == 422
 
 
+def test_demo_top_up_credits_own_balance(client, auth_headers):
+    """Deliberate: reviewers need a balance without a real card. See README."""
+    before = client.get("/client/me", headers=auth_headers).json()
+
+    response = client.post(
+        f"/client/{before['id']}/deposit",
+        headers=auth_headers,
+        json={"amount": 50},
+    )
+    assert response.status_code == 200
+
+    after = client.get("/client/me", headers=auth_headers).json()
+    assert float(after["balance"]) == float(before["balance"]) + 50
+
+
+def test_top_up_of_another_client_is_rejected(client, auth_headers):
+    mine = client.get("/client/me", headers=auth_headers).json()
+
+    response = client.post(
+        f"/client/{mine['id'] + 1000}/deposit",
+        headers=auth_headers,
+        json={"amount": 50},
+    )
+    assert response.status_code in (403, 404)
+
+
 def test_register_rejects_short_password(client):
     response = client.post("/auth/register", json={
         "name": "Short Pass",
