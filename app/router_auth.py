@@ -42,6 +42,10 @@ async def change_role(client_id: int, data: ChangeRoleDTO, _: CurrentAdmin):
 async def verify_email(token: str):
     return await AuthService.verify_email(token)
 
+@router_auth.post("/resend_verification")
+async def resend_verification(data: ForgotPasswordDTO, _: RateLimit):
+    return await AuthService.resend_verification(data)
+
 @router_auth.post("/forgot_password")
 async def forgot_password(data: ForgotPasswordDTO, _: RateLimit):
     return await AuthService.forgot_password(data)

@@ -145,10 +145,10 @@ class OrderNotCompletedError(BaseAppException):
         )
 
 class EmailNotVerifiedError(BaseAppException):
-    def __init__(self, client_id: int):
+    def __init__(self) -> None:
         super().__init__(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Not verify client_id: {client_id}"
+            detail="Your email is not verified yet. Open the link we sent you, or request a new one."
         )
 
 class OrderCannotBeCancelledError(BaseAppException):
@@ -223,4 +223,11 @@ class InvalidWebhookSignatureError(BaseAppException):
         super().__init__(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid webhook signature."
+        )
+
+class EmailQueueError(BaseAppException):
+    def __init__(self) -> None:
+        super().__init__(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Could not queue the email right now. Please try again shortly.",
         )
