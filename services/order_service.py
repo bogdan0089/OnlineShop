@@ -78,8 +78,6 @@ class OrderService:
         async with UnitOfWork() as uow:
             orders = await uow.order.get_orders(limit=limit, offset=offset)
             if not orders:
-                # An empty page is a valid answer, not an error - get_my_orders
-                # already returns [] and both should behave the same.
                 return []
             validated = _orders_list_adapter.validate_python(orders)
         await redis_client.set(
@@ -184,8 +182,6 @@ class OrderService:
                 raise ClientNotFoundError(order.client_id)
             recipient = client.email
             updated = await uow.order.update_order_status(order, status)
-        # Sent only after the transaction committed. Queued inside it, a later
-        # rollback would still have mailed a status change that never happened.
         send_order_status_email.delay(recipient, order_id, status.value)
         await cache.invalidate("order")
         logger.info("order_status_updated", extra={"extra_fields": {"order_id": order_id, "status": status.value}})
@@ -312,13 +308,9 @@ class OrderService:
                 raise NotEnoughMoneyError(order.client_id)
             client.balance -= amount
 
-            # Sorted by product id so two orders sharing products always lock
-            # them in the same order and cannot deadlock each other.
             for op in sorted(order.order_products, key=lambda line: line.product_id):
                 if not await uow.product.decrease_stock(op.product_id, op.quantity):
                     raise OutOfStockError(op.product_id)
-                # The price the client actually paid. A refund must use this,
-                # not whatever the product costs by the time it is returned.
                 op.price_at_purchase = op.product.price
             await uow.transaction.create_transaction(TransactionCreateDTO(
                 amount=amount,
@@ -328,8 +320,6 @@ class OrderService:
             ))
             order.status = OrderStatus.completed
 
-        # Announced only after the transaction committed. Queued inside it, a
-        # later rollback would still have sent mail about an order that never was.
         send_order_status_email.delay(
             to_email=current_client.email,
             order_id=order.id,
@@ -361,4 +351,3 @@ class OrderService:
     async def get_my_orders(current_client: Client, limit, offset) -> list[Order]:
         async with UnitOfWork() as uow:
             return await uow.order.get_by_client_id(current_client.id, limit, offset)
-

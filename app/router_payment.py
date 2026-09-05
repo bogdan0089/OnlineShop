@@ -13,7 +13,6 @@ stripe.api_key = settings.STRIPE_SECRET_KEY
 
 router_payment = APIRouter(prefix="/payment", tags=["Payment"])
 
-
 @router_payment.post("/create")
 async def payment_create(_: RateLimit, data: PaymentRequestDTO, current_client: CurrentClient):
     intent = stripe.PaymentIntent.create(
@@ -33,7 +32,6 @@ async def stripe_webhook(request: Request):
             payload, sig_header, settings.STRIPE_WEBHOOK_SECRET
         )
     except (ValueError, stripe.error.SignatureVerificationError) as exc:
-        # A 5xx here would make Stripe retry a request that can never succeed.
         raise InvalidWebhookSignatureError() from exc
 
     if event["type"] == "payment_intent.succeeded":
@@ -44,6 +42,3 @@ async def stripe_webhook(request: Request):
     return {
         "status": "ok"
     }
-
-
-
