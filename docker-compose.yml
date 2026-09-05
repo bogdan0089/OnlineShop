@@ -1,7 +1,7 @@
 services:
   db:
     image: postgres:15
-    container_name: db
+    container_name: ecommerce_db
     restart: always
     env_file:
       - .env
@@ -21,7 +21,7 @@ services:
 
   redis:
     image: redis:7
-    container_name: redis
+    container_name: ecommerce_redis
     restart: always
     ports:
       - "6379:6379"
@@ -33,8 +33,13 @@ services:
 
   rabbitmq:
     image: rabbitmq:3-management
-    container_name: rabbitmq
+    container_name: ecommerce_rabbitmq
     restart: always
+    env_file:
+      - .env
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-admin}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-python_88}
     ports:
       - "5672:5672"
       - "15672:15672"
@@ -46,7 +51,7 @@ services:
 
   backend_system_app:
     build: .
-    container_name: api
+    container_name: ecommerce_api
     restart: always
     env_file:
       - .env
@@ -68,7 +73,7 @@ services:
 
   celery_worker:
     build: .
-    container_name: celery_worker
+    container_name: ecommerce_celery_worker
     restart: always
     env_file:
       - .env
