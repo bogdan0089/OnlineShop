@@ -47,7 +47,9 @@ anything.
 - `schemas/<resource>/input_dto.py` / `output_dto.py` — input and output are separate
   types on purpose: what a client may send is not what the API gives back. ORM objects
   never reach the client.
-- `core/` — config (pydantic-settings), enums, exceptions, the Redis client.
+- `core/` — config (pydantic-settings), enums, exceptions, the Redis client, and the
+  field validators shared across domains so a rule like the password minimum is
+  written once.
 - `utils/` — dependencies, cache keys, password hashing, the WebSocket manager, logging.
 - `celery_app.py` — the Celery app and its four mail tasks in one module, which is why
   the worker needs no `include=`.
